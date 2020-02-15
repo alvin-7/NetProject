@@ -46,13 +46,14 @@ int main() {
 	while(true)
 	{
 		//5. 接受客户端数据
-		int nLen = recv(_sock, _recvBuf, 128, 0);
+		int nLen = recv(_cSock, _recvBuf, 128, 0);
 		if (nLen <= 0)
 		{
-			printf("客户端已退出，任务结束");
+			printf("客户端已退出，任务结束！\n");
 			break;
 		}
 		//6. 处理请求并发送给客户端
+		printf("Handleing Client...\n");
 		if (0 == strcmp(_recvBuf, "getName"))
 		{
 			char msgBuf[] = "zhuye";
