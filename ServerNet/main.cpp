@@ -34,22 +34,45 @@ int main() {
 	sockaddr_in clientAddr = {};
 	int nAddrLen = sizeof(clientAddr);
 	SOCKET _cSock = INVALID_SOCKET;
-	while(true)
-	{ 
-		_cSock = accept(_sock, (sockaddr*)&clientAddr, &nAddrLen);
-		if (INVALID_SOCKET == _cSock)
-		{
-			printf("Accept Error!\n");
-			continue;
-		}
-		printf("新客户端加入 IP: %s\n", (inet_ntoa)(clientAddr.sin_addr));
-		//5. send
-		char msgBuf[] = "Hello, Socket!";
-		send(_cSock, msgBuf, strlen(msgBuf)+1, 0);
+
+	_cSock = accept(_sock, (sockaddr*)&clientAddr, &nAddrLen);
+	if (INVALID_SOCKET == _cSock)
+	{
+		printf("Accept Error!\n");
 	}
-	//6. 关闭套接字
+	printf("新客户端加入 IP: %s\n", (inet_ntoa)(clientAddr.sin_addr));
+
+	char _recvBuf[128] = {};
+	while(true)
+	{
+		//5. 接受客户端数据
+		int nLen = recv(_sock, _recvBuf, 128, 0);
+		if (nLen <= 0)
+		{
+			printf("客户端已退出，任务结束");
+			break;
+		}
+		//6. 处理请求并发送给客户端
+		if (0 == strcmp(_recvBuf, "getName"))
+		{
+			char msgBuf[] = "zhuye";
+			send(_cSock, msgBuf, strlen(msgBuf) + 1, 0);
+		}
+		else if (0 == strcmp(_recvBuf, "getAge"))
+		{
+			char msgBuf[] = "18";
+			send(_cSock, msgBuf, strlen(msgBuf) + 1, 0);
+		}
+		else
+		{
+			char msgBuf[] = "Hello, Socket!";
+			send(_cSock, msgBuf, strlen(msgBuf) + 1, 0);
+		}
+	}
+	//7. 关闭套接字
 	closesocket(_sock);
 	//清除Windows socket环境
 	WSACleanup();
+	getchar();
 	return 0;
 }

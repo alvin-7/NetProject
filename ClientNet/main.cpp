@@ -30,7 +30,23 @@ int main() {
 		printf("Connect Error!");
 		return 0;
 	}
-	//3. 接受服务器信息 recv
+	while (true)
+	{
+		//3. 输入请求命令
+		char cmdBuf[128] = {};
+		scanf_s("%s", cmdBuf);
+		//4. 处理请求命令
+		if (0 == strcmp(cmdBuf, "exit"))
+		{
+			break;
+		}
+		else
+		{
+			//5. 发送请求命令
+			send(_sock, cmdBuf, strlen(cmdBuf) + 1, 0);
+		}
+	}
+	//6. 接受服务器信息 recv
 	char recvBuf[256] = {};
 	int nlen = recv(_sock, recvBuf, 256, 0);
 	if (!nlen > 0)
@@ -40,7 +56,7 @@ int main() {
 	}
 	printf("接受到的数据：%s\n", recvBuf);
 
-	//6. 关闭套接字
+	//7. 关闭套接字
 	closesocket(_sock);
 	//清除Windows socket环境
 	WSACleanup();
