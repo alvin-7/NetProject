@@ -7,6 +7,12 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
+struct DataPackage
+{
+	int age;
+	char name[32];
+};
+
 int main() {
 	WORD ver = MAKEWORD(2, 2);
 	WSADATA dat;
@@ -53,16 +59,11 @@ int main() {
 			break;
 		}
 		//6. 处理请求并发送给客户端
-		printf("Handleing Client...\n");
-		if (0 == strcmp(_recvBuf, "getName"))
+		printf("Handling Client...\n");
+		if (0 == strcmp(_recvBuf, "getInfo"))
 		{
-			char msgBuf[] = "zhuye";
-			send(_cSock, msgBuf, strlen(msgBuf) + 1, 0);
-		}
-		else if (0 == strcmp(_recvBuf, "getAge"))
-		{
-			char msgBuf[] = "18";
-			send(_cSock, msgBuf, strlen(msgBuf) + 1, 0);
+			DataPackage dp = { 80, "zhuye" };
+			send(_cSock, (const char*)&dp, sizeof(DataPackage), 0);
 		}
 		else
 		{

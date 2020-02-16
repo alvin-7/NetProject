@@ -8,6 +8,12 @@
 #pragma comment(lib, "ws2_32.lib")
 #pragma warning(disable:4996)
 
+struct DataPackage
+{
+	int age;
+	char name[32];
+};
+
 int main() {
 	WORD ver = MAKEWORD(2, 2);
 	WSADATA dat;
@@ -35,7 +41,7 @@ int main() {
 	{
 		//3. 输入请求命令
 		char cmdBuf[128] = {};
-		printf("Handleing...\n");
+		printf("Handling...\n");
 		scanf("%s", cmdBuf);
 		//4. 处理请求命令
 		if (0 == strcmp(cmdBuf, "exit"))
@@ -52,13 +58,15 @@ int main() {
 		int nlen = recv(_sock, recvBuf, 256, 0);
 		if (!nlen > 0)
 		{
-			printf("Recv Error!");
-			return 0;
+			printf("Recv Error!\n");
 		}
-		printf("接收到的数据：%s\n", recvBuf);
+		else
+		{
+			DataPackage* dp = (DataPackage*)recvBuf;
+			printf("接收到的数据：%d,%s\n", dp->age, dp->name);
+		}
 	}
 	
-
 	//7. 关闭套接字
 	closesocket(_sock);
 	//清除Windows socket环境
