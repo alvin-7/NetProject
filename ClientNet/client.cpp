@@ -19,21 +19,41 @@ struct DataHeader
 	short cmd;
 	short dataLength;
 };
-struct Login
+struct Login : public DataHeader
 {
+	Login()
+	{
+		cmd = CMD_LOGIN;
+		dataLength = sizeof(Login);
+	}
 	char uName[32];
 	char uPassword[32];
 };
-struct LoginResult
+struct LoginResult : public DataHeader
 {
+	LoginResult()
+	{
+		cmd = CMD_LOGIN;
+		dataLength = sizeof(LoginResult);
+	}
 	bool result;
 };
-struct Loginout
+struct Loginout : public DataHeader
 {
+	Loginout()
+	{
+		cmd = CMD_LOGINOUT;
+		dataLength = sizeof(Loginout);
+	}
 	char uName[32];
 };
-struct LoginoutResult
+struct LoginoutResult : public DataHeader
 {
+	LoginoutResult()
+	{
+		cmd = CMD_LOGINOUT;
+		dataLength = sizeof(LoginoutResult);
+	}
 	bool result;
 };
 
@@ -77,16 +97,15 @@ int main() {
 		}
 		else if (0 == strcmp(cmdBuf, "login"))
 		{
-			Login login = { "name", "mima" };
-			DataHeader dh = { CMD_LOGIN, sizeof(Login) };
-			send(_sock, (char*)&dh, sizeof(DataHeader), 0);
+			Login login;
+			strcpy(login.uName, "name");
+			strcpy(login.uPassword, "mima");
 			send(_sock, (char*)&login, sizeof(Login), 0);
 		}
 		else if (0 == strcmp(cmdBuf, "loginout"))
 		{
-			Loginout loginout = { "name" };
-			DataHeader dh = { CMD_LOGINOUT, sizeof(Loginout) };
-			send(_sock, (char*)&dh, sizeof(DataHeader), 0);
+			Loginout loginout;
+			strcpy(loginout.uName, "name");
 			send(_sock, (char*)&loginout, sizeof(Loginout), 0);
 		}
 		else
@@ -108,14 +127,14 @@ int main() {
 				case CMD_LOGIN:
 				{
 					LoginResult loginRet = {};
-					recv(_sock, (char*)&loginRet, sizeof(LoginResult), 0);
+					recv(_sock, (char*)&loginRet + sizeof(DataHeader), sizeof(LoginResult) - sizeof(DataHeader), 0);
 					printf("接收到的信息：%d\n", loginRet.result);
 				}
 				break;
 			case CMD_LOGINOUT:
 				{
 					LoginoutResult loginoutRet = {};
-					recv(_sock, (char*)&loginoutRet, sizeof(LoginoutResult), 0);
+					recv(_sock, (char*)&loginoutRet + sizeof(DataHeader), sizeof(LoginoutResult) - sizeof(DataHeader), 0);
 					printf("接收到的信息：%d\n", loginoutRet.result);
 				}
 				break;

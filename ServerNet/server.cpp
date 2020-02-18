@@ -18,21 +18,43 @@ struct DataHeader
 	short cmd;
 	short dataLength;
 };
-struct Login
+struct Login : public DataHeader
 {
+	Login()
+	{
+		cmd = CMD_LOGIN;
+		dataLength = sizeof(Login);
+	}
 	char uName[32];
 	char uPassword[32];
 };
-struct LoginResult
+struct LoginResult : public DataHeader
 {
+	LoginResult()
+	{
+		cmd = CMD_LOGIN;
+		dataLength = sizeof(LoginResult);
+		result = false;
+	}
 	bool result;
 };
-struct Loginout
+struct Loginout : public DataHeader
 {
+	Loginout()
+	{
+		cmd = CMD_LOGINOUT;
+		dataLength = sizeof(Loginout);
+	}
 	char uName[32];
 };
-struct LoginoutResult
+struct LoginoutResult : public DataHeader
 {
+	LoginoutResult()
+	{
+		cmd = CMD_LOGINOUT;
+		dataLength = sizeof(LoginoutResult);
+		result = false;
+	}
 	bool result;
 };
 int main() {
@@ -89,20 +111,21 @@ int main() {
 			{
 				case CMD_LOGIN:
 				{
-					printf("Ã¶¾Ù£º%d", CMD_LOGIN);
 					Login login = {};
-					int nLen = recv(_cSock, (char*)&login, sizeof(Login), 0);
-					LoginResult ret = {true};
-					send(_cSock, (char*)&header, sizeof(DataHeader), 0);
+					recv(_cSock, (char*)&login + sizeof(DataHeader), sizeof(Login) - sizeof(DataHeader), 0);
+					printf("CMD_LOGIN name: %s ; password: %s\n", login.uName, login.uPassword);
+					LoginResult ret;
+					ret.result = true;
 					send(_cSock, (char*)&ret, sizeof(LoginResult), 0);
 				}
 			break;
 				case CMD_LOGINOUT:
 				{
 					Loginout loginout = {};
-					int nLen = recv(_cSock, (char*)&loginout, sizeof(Loginout), 0);
-					LoginoutResult ret = {true};
-					send(_cSock, (char*)&header, sizeof(DataHeader), 0);
+					recv(_cSock, (char*)&loginout + sizeof(DataHeader), sizeof(Loginout) - sizeof(DataHeader), 0);
+					printf("CMD_LOGIN name: %s\n", loginout.uName);
+					LoginoutResult ret;
+					ret.result = true;
 					send(_cSock, (char*)&ret, sizeof(LoginoutResult), 0);
 				}
 			break;
