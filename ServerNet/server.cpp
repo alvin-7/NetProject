@@ -96,45 +96,47 @@ int main() {
 
 		while(true)
 		{
-			DataHeader header = {};
+			char arrayRecv[1024] = {};
 			//5. 接受客户端数据
-			int nLen = recv(_cSock, (char*)&header, sizeof(DataHeader), 0);
+			int nLen = recv(_cSock, arrayRecv, sizeof(DataHeader), 0);
+			DataHeader* header = (DataHeader*)arrayRecv;
 			if (nLen <= 0)
 			{
 				printf("客户端已退出，任务结束！\n");
 				break;
 			}
-			printf("收到命令：%d 数据长度：%d\n", header.cmd, header.dataLength);
+			printf("收到命令：%d 数据长度：%d\n", header->cmd, header->dataLength);
 			//6. 处理请求并发送给客户端
 			printf("Handling Client...\n");
-			switch (header.cmd)
+			switch (header->cmd)
 			{
-				case CMD_LOGIN:
-				{
-					Login login = {};
-					recv(_cSock, (char*)&login + sizeof(DataHeader), sizeof(Login) - sizeof(DataHeader), 0);
-					printf("CMD_LOGIN name: %s ; password: %s\n", login.uName, login.uPassword);
-					LoginResult ret;
-					ret.result = true;
-					send(_cSock, (char*)&ret, sizeof(LoginResult), 0);
-				}
+			case CMD_LOGIN:
+			{
+				Login login = {};
+				recv(_cSock, (char*)&login + sizeof(DataHeader), sizeof(Login) - sizeof(DataHeader), 0);
+				printf("CMD_LOGIN name: %s ; password: %s\n", login.uName, login.uPassword);
+				LoginResult ret;
+				ret.result = true;
+				send(_cSock, (char*)&ret, sizeof(LoginResult), 0);
+			}
 			break;
-				case CMD_LOGINOUT:
-				{
-					Loginout loginout = {};
-					recv(_cSock, (char*)&loginout + sizeof(DataHeader), sizeof(Loginout) - sizeof(DataHeader), 0);
-					printf("CMD_LOGIN name: %s\n", loginout.uName);
-					LoginoutResult ret;
-					ret.result = true;
-					send(_cSock, (char*)&ret, sizeof(LoginoutResult), 0);
-				}
+			case CMD_LOGINOUT:
+			{
+				Loginout loginout = {};
+				recv(_cSock, (char*)&loginout + sizeof(DataHeader), sizeof(Loginout) - sizeof(DataHeader), 0);
+				printf("CMD_LOGIN name: %s\n", loginout.uName);
+				LoginoutResult ret;
+				ret.result = true;
+				send(_cSock, (char*)&ret, sizeof(LoginoutResult), 0);
+			}
 			break;
 			default:
-				{
-					header.cmd = CMD_ERROR;
-					header.dataLength = 0;
-					send(_cSock, (char*)&header, sizeof(DataHeader), 0);
-				}
+			{
+				DataHeader header = {};
+				header.cmd = CMD_ERROR;
+				header.dataLength = 0;
+				send(_cSock, (char*)&header, sizeof(DataHeader), 0);
+			}
 			break;
 			}
 		}
