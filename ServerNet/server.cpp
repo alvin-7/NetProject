@@ -61,7 +61,7 @@ struct LoginoutResult : public DataHeader
 	bool result;
 };
 
-vector<SOCKET> g_clients;
+//vector<SOCKET> g_clients;
 
 int DoProcessor(SOCKET _cSock)
 {
@@ -73,9 +73,9 @@ int DoProcessor(SOCKET _cSock)
 	if (nLen <= 0)
 	{
 		printf("客户端已退出，任务结束！\n");
-		return -1;
+		return 0;
 	}
-	printf("收到命令：%d 数据长度：%d\n", header->cmd, header->dataLength);
+	printf("收到 %d 命令：%d 数据长度：%d\n",_cSock, header->cmd, header->dataLength);
 
 	//6. 处理请求并发送给客户端
 	printf("Handling Client...\n");
@@ -123,7 +123,7 @@ int main() {
 	//2. bind 
 	sockaddr_in _sin = {};
 	_sin.sin_family = AF_INET;
-	_sin.sin_port = htons(4567);//host to net unsigned short
+	_sin.sin_port = htons(7777);//host to net unsigned short
 	_sin.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
 	if (SOCKET_ERROR == (bind(_sock, (sockaddr*)&_sin, sizeof(sockaddr_in))))
 	{
@@ -136,33 +136,42 @@ int main() {
 		printf("Listen Error!\n");
 		return 0;
 	}
+	fd_set fdMain;	//创建一个用来装socket的结构体
+
+	FD_ZERO(&fdMain);//将你的套节字集合清
+
+	FD_SET(_sock, &fdMain);//加入你感兴趣的套节字到集合,这里是一个读数据的套节字s
+
 	while(true)
 	{
-		fd_set fdRead;
-		fd_set fdWrite;
-		fd_set fdExp;
-			
-		FD_ZERO(&fdRead);
-		FD_ZERO(&fdWrite);
-		FD_ZERO(&fdExp);
-
-		FD_SET(_sock, &fdRead);
-		FD_SET(_sock, &fdWrite);
-		FD_SET(_sock, &fdExp);
-
-		for (size_t i = g_clients.size()-1; i > 0; i--)
+		fd_set fdRead = fdMain;
+		fd_set fdWrite = fdMain;
+		fd_set fdExp = fdMain;
+		/*for (int i = (int)g_clients.size()-1; i >= 0; i--)
 		{
+			printf("FDSET\n");
 			FD_SET(g_clients[i], &fdRead);
-		}
+		}*/
+		
 		//nfds 是一个整数值，是指fd_set集合中所有描述符（socket）的范围，而不是数量
 		//即是所有文件描述符最大值+1（Windows平台下已处理，可写0）
-		int ret = select(_sock+1, &fdRead, &fdWrite, &fdExp, NULL);
+		//第一个参数不管,是兼容目的,最后的是超时标准,select是阻塞操作
+		//当然要设置超时事件.
+		//接着的三个类型为fd_set的参数分别是用于检查套节字的可读性, 可写性, 和列外数据性质.
+		timeval st;
+		st.tv_sec = 3;
+		st.tv_usec = 0;
+		int ret = select(_sock+1, &fdRead, &fdWrite, &fdExp, &st);
 		if (ret < 0)
 		{
 			printf("select失败，任务结束\n");
 			break;
 		}
-		if (FD_ISSET(_sock, &fdRead))
+		else if (0 == ret)
+		{
+			continue;
+		}
+		if (FD_ISSET(_sock, &fdRead)) //判断文件描述符fdRead是否在集合_sock中
 		{
 			FD_CLR(_sock, &fdRead);
 			//4. accept 等待接受客户端连接
@@ -174,25 +183,33 @@ int main() {
 			{
 				printf("Accept Error!\n");
 			}
-			printf("新客户端加入 IP: %s\n", (inet_ntoa)(clientAddr.sin_addr));
-			g_clients.push_back(_cSock);
-		}
-		for (size_t i = 0; i < fdRead.fd_count; i++)
-		{
-			if (-1 == DoProcessor(fdRead.fd_array[i]))
+			else
 			{
-				auto iter = find(g_clients.begin(), g_clients.end(), fdRead.fd_array[i]);
+				printf("新客户端加入 Socket: %d ; IP: %s\n", _cSock, (inet_ntoa)(clientAddr.sin_addr));
+				//g_clients.push_back(_cSock);
+				FD_SET(_cSock, &fdMain);//加入套节字到集合,这里是一个读数据的套节字
+			}
+		}
+		for (u_int i = 0; i < fdRead.fd_count; i++)
+		{
+			if (0 == DoProcessor(fdRead.fd_array[i]))
+			{
+				/*auto iter = find(g_clients.begin(), g_clients.end(), fdRead.fd_array[i]);
 				if (iter != g_clients.end())
 				{
 					g_clients.erase(iter);
-				}
+				}*/
+				SOCKET socketTemp = fdRead.fd_array[i];
+				FD_CLR(fdRead.fd_array[i], &fdMain);
+				//释放
+				closesocket(socketTemp);
 			}
 		}
 	}
-	for (size_t i = g_clients.size() - 1; i > 0; i--)
+	/*for (int i = (int)g_clients.size() - 1; i >= 0; i--)
 	{
 		closesocket(g_clients[i]);
-	}
+	}*/
 	//7. 关闭套接字
 	closesocket(_sock);
 	//清除Windows socket环境

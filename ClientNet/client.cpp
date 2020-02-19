@@ -73,7 +73,7 @@ int main() {
 	//2. connect·þÎñÆ÷
 	sockaddr_in _sin = {};
 	_sin.sin_family = AF_INET;
-	_sin.sin_port = htons(4567);
+	_sin.sin_port = htons(7777);
 	_sin.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
 	int ret = connect(_sock, (sockaddr *)(&_sin), sizeof(sockaddr_in));
 	if (SOCKET_ERROR == ret)
