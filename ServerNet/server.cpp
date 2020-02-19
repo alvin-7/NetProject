@@ -63,55 +63,7 @@ struct LoginoutResult : public DataHeader
 
 //vector<SOCKET> g_clients;
 
-int DoProcessor(SOCKET _cSock)
-{
-	//缓冲区
-	char arrayRecv[1024] = {};
-	//5. 接受客户端数据
-	int nLen = recv(_cSock, arrayRecv, sizeof(DataHeader), 0);
-	DataHeader* header = (DataHeader*)arrayRecv;
-	if (nLen <= 0)
-	{
-		printf("客户端已退出，任务结束！\n");
-		return 0;
-	}
-	printf("收到 %d 命令：%d 数据长度：%d\n",_cSock, header->cmd, header->dataLength);
-
-	//6. 处理请求并发送给客户端
-	printf("Handling Client...\n");
-	switch (header->cmd)
-	{
-	case CMD_LOGIN:
-	{
-		Login login = {};
-		recv(_cSock, (char*)&login + sizeof(DataHeader), sizeof(Login) - sizeof(DataHeader), 0);
-		printf("CMD_LOGIN name: %s ; password: %s\n", login.uName, login.uPassword);
-		LoginResult ret;
-		ret.result = true;
-		send(_cSock, (char*)&ret, sizeof(LoginResult), 0);
-	}
-	break;
-	case CMD_LOGINOUT:
-	{
-		Loginout loginout = {};
-		recv(_cSock, (char*)&loginout + sizeof(DataHeader), sizeof(Loginout) - sizeof(DataHeader), 0);
-		printf("CMD_LOGIN name: %s\n", loginout.uName);
-		LoginoutResult ret;
-		ret.result = true;
-		send(_cSock, (char*)&ret, sizeof(LoginoutResult), 0);
-	}
-	break;
-	default:
-	{
-		DataHeader header = {};
-		header.cmd = CMD_ERROR;
-		header.dataLength = 0;
-		send(_cSock, (char*)&header, sizeof(DataHeader), 0);
-	}
-	break;
-	}
-	return 1;
-}
+int DoProcessor(SOCKET _cSock, fd_set fdRead);
 
 int main() {
 	WORD ver = MAKEWORD(2, 2);
@@ -138,7 +90,7 @@ int main() {
 	}
 	fd_set fdMain;	//创建一个用来装socket的结构体
 
-	FD_ZERO(&fdMain);//将你的套节字集合清
+	FD_ZERO(&fdMain);//将你的套节字集合清空
 
 	FD_SET(_sock, &fdMain);//加入你感兴趣的套节字到集合,这里是一个读数据的套节字s
 
@@ -159,7 +111,7 @@ int main() {
 		//当然要设置超时事件.
 		//接着的三个类型为fd_set的参数分别是用于检查套节字的可读性, 可写性, 和列外数据性质.
 		timeval st;
-		st.tv_sec = 3;
+		st.tv_sec = 1;
 		st.tv_usec = 0;
 		int ret = select(_sock+1, &fdRead, &fdWrite, &fdExp, &st);
 		if (ret < 0)
@@ -169,6 +121,7 @@ int main() {
 		}
 		else if (0 == ret)
 		{
+			printf("空闲处理其他业务！\n");
 			continue;
 		}
 		if (FD_ISSET(_sock, &fdRead)) //判断文件描述符fdRead是否在集合_sock中
@@ -187,12 +140,12 @@ int main() {
 			{
 				printf("新客户端加入 Socket: %d ; IP: %s\n", _cSock, (inet_ntoa)(clientAddr.sin_addr));
 				//g_clients.push_back(_cSock);
-				FD_SET(_cSock, &fdMain);//加入套节字到集合,这里是一个读数据的套节字
+				FD_SET(_cSock, &fdRead);//加入套节字到集合,这里是一个读数据的套节字
 			}
 		}
 		for (u_int i = 0; i < fdRead.fd_count; i++)
 		{
-			if (0 == DoProcessor(fdRead.fd_array[i]))
+			if (0 == DoProcessor(fdRead.fd_array[i], fdRead)) //失败则清理cSock
 			{
 				/*auto iter = find(g_clients.begin(), g_clients.end(), fdRead.fd_array[i]);
 				if (iter != g_clients.end())
@@ -200,20 +153,76 @@ int main() {
 					g_clients.erase(iter);
 				}*/
 				SOCKET socketTemp = fdRead.fd_array[i];
-				FD_CLR(fdRead.fd_array[i], &fdMain);
+				FD_CLR(socketTemp, &fdRead);
 				//释放
 				closesocket(socketTemp);
 			}
 		}
 	}
-	/*for (int i = (int)g_clients.size() - 1; i >= 0; i--)
+	for (u_int i = 0; i < fdMain.fd_count; i++)
 	{
-		closesocket(g_clients[i]);
-	}*/
+		SOCKET socketTemp = fdMain.fd_array[i];
+		FD_CLR(socketTemp, &fdMain);
+		closesocket(fdMain.fd_array[i]);
+	}
 	//7. 关闭套接字
 	closesocket(_sock);
 	//清除Windows socket环境
 	WSACleanup();
 	getchar();
 	return 0;
+}
+
+int DoProcessor(SOCKET _cSock, fd_set fdMain)
+{
+	//缓冲区
+	char arrayRecv[1024] = {};
+	//5. 接受客户端数据
+	int nLen = recv(_cSock, arrayRecv, sizeof(DataHeader), 0);
+	DataHeader* header = (DataHeader*)arrayRecv;
+	if (nLen <= 0)
+	{
+		printf("客户端已退出，任务结束！\n");
+		return 0;
+	}
+	printf("收到 %d 命令：%d 数据长度：%d\n", _cSock, header->cmd, header->dataLength);
+
+	//6. 处理请求并发送给客户端
+	printf("Handling Client...\n");
+	switch (header->cmd)
+	{
+	case CMD_LOGIN:
+	{
+		Login login = {};
+		recv(_cSock, (char*)&login + sizeof(DataHeader), sizeof(Login) - sizeof(DataHeader), 0);
+		printf("CMD_LOGIN name: %s ; password: %s\n", login.uName, login.uPassword);
+		LoginResult ret;
+		ret.result = true;
+		send(_cSock, (char*)&ret, sizeof(LoginResult), 0);
+		for (u_int i = 1; i < fdMain.fd_count; i++)
+		{
+			printf("fdRead: %d", fdMain.fd_array[i]);
+		}
+	}
+	break;
+	case CMD_LOGINOUT:
+	{
+		Loginout loginout = {};
+		recv(_cSock, (char*)&loginout + sizeof(DataHeader), sizeof(Loginout) - sizeof(DataHeader), 0);
+		printf("CMD_LOGIN name: %s\n", loginout.uName);
+		LoginoutResult ret;
+		ret.result = true;
+		send(_cSock, (char*)&ret, sizeof(LoginoutResult), 0);
+	}
+	break;
+	default:
+	{
+		DataHeader header = {};
+		header.cmd = CMD_ERROR;
+		header.dataLength = 0;
+		send(_cSock, (char*)&header, sizeof(DataHeader), 0);
+	}
+	break;
+	}
+	return 1;
 }
