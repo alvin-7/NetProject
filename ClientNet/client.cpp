@@ -90,20 +90,19 @@ int main() {
 
 	FD_SET(_sock, &fdMain);//加入你感兴趣的套节字到集合,这里是一个读数据的套节字s
 
-
 	while (true)
 	{
 		fd_set fdRead = fdMain;
-		timeval st;
-		st.tv_sec = 1;
-		st.tv_usec = 0;
-		int ret = select(_sock + 1, &fdRead, nullptr, nullptr, &st);
+		fd_set fdWrite = fdMain;
+		fd_set fdExp = fdMain;
+		timeval st = {1, 0};
+		int ret = select(0, &fdRead, 0, 0, &st);
 		if (ret < 0)
 		{
 			printf("select程序结束\n");
 			break;
 		}
-		else if (ret == 0)
+		else if (0 == ret)
 		{
 			printf("空闲处理其他业务！\n");
 		}
@@ -112,7 +111,7 @@ int main() {
 			FD_CLR(_sock, &fdRead);
 			if (0 == DoProcessor(_sock))
 			{
-				printf("任务结束！\n");
+				printf("select任务结束！\n");
 				break;
 			}
 		}
@@ -146,7 +145,7 @@ int main() {
 		//	send(_sock, (char*)&dh, sizeof(DataHeader), 0);
 		//}
 		//6. 接受服务器信息 recv
-		DataHeader retHeader = {};
+		/*DataHeader retHeader = {};
 		int nlen = recv(_sock, (char*)&retHeader, sizeof(DataHeader), 0);
 		if (!nlen > 0)
 		{
@@ -174,7 +173,12 @@ int main() {
 				printf("Error!\n");
 				break;
 			}
-		}
+		}*/
+		Login login;
+		strcpy(login.uName, "name");
+		strcpy(login.uPassword, "mima");
+		send(_sock, (char*)&login, sizeof(Login), 0);
+		Sleep(1000);
 	}
 
 	//7. 关闭套接字

@@ -63,7 +63,7 @@ struct LoginoutResult : public DataHeader
 
 //vector<SOCKET> g_clients;
 
-int DoProcessor(SOCKET _cSock, fd_set fdRead);
+int DoProcessor(SOCKET _cSock);
 
 int main() {
 	WORD ver = MAKEWORD(2, 2);
@@ -97,8 +97,7 @@ int main() {
 	while(true)
 	{
 		fd_set fdRead = fdMain;
-		fd_set fdWrite = fdMain;
-		fd_set fdExp = fdMain;
+
 		/*for (int i = (int)g_clients.size()-1; i >= 0; i--)
 		{
 			printf("FDSET\n");
@@ -113,7 +112,7 @@ int main() {
 		timeval st;
 		st.tv_sec = 1;
 		st.tv_usec = 0;
-		int ret = select(_sock+1, &fdRead, &fdWrite, &fdExp, &st);
+		int ret = select(0, &fdRead, 0, 0, &st);
 		if (ret < 0)
 		{
 			printf("select失败，任务结束\n");
@@ -140,12 +139,13 @@ int main() {
 			{
 				printf("新客户端加入 Socket: %d ; IP: %s\n", _cSock, (inet_ntoa)(clientAddr.sin_addr));
 				//g_clients.push_back(_cSock);
-				FD_SET(_cSock, &fdRead);//加入套节字到集合,这里是一个读数据的套节字
+				//FD_ZERO(&fdRead);//将你的套节字集合清空
+				FD_SET(_cSock, &fdMain);//加入套节字到集合,这里是一个读数据的套节字
 			}
 		}
 		for (u_int i = 0; i < fdRead.fd_count; i++)
 		{
-			if (0 == DoProcessor(fdRead.fd_array[i], fdRead)) //失败则清理cSock
+			if (0 == DoProcessor(fdRead.fd_array[i])) //失败则清理cSock
 			{
 				/*auto iter = find(g_clients.begin(), g_clients.end(), fdRead.fd_array[i]);
 				if (iter != g_clients.end())
@@ -153,18 +153,19 @@ int main() {
 					g_clients.erase(iter);
 				}*/
 				SOCKET socketTemp = fdRead.fd_array[i];
-				FD_CLR(socketTemp, &fdRead);
+				FD_CLR(socketTemp, &fdMain);
 				//释放
 				closesocket(socketTemp);
 			}
 		}
+		//printf("空闲处理其他业务！\n");
 	}
-	for (u_int i = 0; i < fdMain.fd_count; i++)
+	/*for (u_int i = 0; i < fdMain.fd_count; i++)
 	{
 		SOCKET socketTemp = fdMain.fd_array[i];
 		FD_CLR(socketTemp, &fdMain);
 		closesocket(fdMain.fd_array[i]);
-	}
+	}*/
 	//7. 关闭套接字
 	closesocket(_sock);
 	//清除Windows socket环境
@@ -173,7 +174,7 @@ int main() {
 	return 0;
 }
 
-int DoProcessor(SOCKET _cSock, fd_set fdMain)
+int DoProcessor(SOCKET _cSock)
 {
 	//缓冲区
 	char arrayRecv[1024] = {};
@@ -199,10 +200,6 @@ int DoProcessor(SOCKET _cSock, fd_set fdMain)
 		LoginResult ret;
 		ret.result = true;
 		send(_cSock, (char*)&ret, sizeof(LoginResult), 0);
-		for (u_int i = 1; i < fdMain.fd_count; i++)
-		{
-			printf("fdRead: %d", fdMain.fd_array[i]);
-		}
 	}
 	break;
 	case CMD_LOGINOUT:
