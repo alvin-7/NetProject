@@ -5,61 +5,12 @@
 #include <WinSock2.h>
 #include <stdio.h>
 #include <vector>
+#include "defines.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
 using namespace std;
 
-enum CMD
-{
-	CMD_ERROR,
-	CMD_LOGIN,
-	CMD_LOGINOUT,
-};
-struct DataHeader
-{
-	short cmd;
-	short dataLength;
-};
-struct Login : public DataHeader
-{
-	Login()
-	{
-		cmd = CMD_LOGIN;
-		dataLength = sizeof(Login);
-	}
-	char uName[32];
-	char uPassword[32];
-};
-struct LoginResult : public DataHeader
-{
-	LoginResult()
-	{
-		cmd = CMD_LOGIN;
-		dataLength = sizeof(LoginResult);
-		result = false;
-	}
-	bool result;
-};
-struct Loginout : public DataHeader
-{
-	Loginout()
-	{
-		cmd = CMD_LOGINOUT;
-		dataLength = sizeof(Loginout);
-	}
-	char uName[32];
-};
-struct LoginoutResult : public DataHeader
-{
-	LoginoutResult()
-	{
-		cmd = CMD_LOGINOUT;
-		dataLength = sizeof(LoginoutResult);
-		result = false;
-	}
-	bool result;
-};
 
 //vector<SOCKET> g_clients;
 
@@ -75,7 +26,7 @@ int main() {
 	//2. bind 
 	sockaddr_in _sin = {};
 	_sin.sin_family = AF_INET;
-	_sin.sin_port = htons(7777);//host to net unsigned short
+	_sin.sin_port = htons(PORT_ZY);//host to net unsigned short
 	_sin.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
 	if (SOCKET_ERROR == (bind(_sock, (sockaddr*)&_sin, sizeof(sockaddr_in))))
 	{
