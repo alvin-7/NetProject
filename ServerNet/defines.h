@@ -1,5 +1,4 @@
 #pragma once
-#define PORT_ZY 7777
 
 enum CMD
 {
@@ -10,7 +9,7 @@ enum CMD
 struct DataHeader
 {
 	short cmd;
-	short dataLength;
+	short dataLength = sizeof(DataHeader);
 };
 struct Login : public DataHeader
 {

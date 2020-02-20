@@ -168,7 +168,7 @@ public:
 	void OnNetMsg(DataHeader* header)
 	{
 		//6. 处理请求
-		printf("Handling Client...\n");
+		printf("OnNetMsg Client...\n");
 		switch (header->cmd)
 		{
 		case CMD_LOGIN:
@@ -201,6 +201,7 @@ public:
 	}
 };
 
+//输入线程
 void CmdThread(CNetClient * client)
 {
 	while (g_bRun)

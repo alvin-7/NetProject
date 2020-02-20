@@ -13,7 +13,7 @@ enum CMD
 struct DataHeader
 {
 	short cmd;
-	short dataLength;
+	short dataLength = sizeof(DataHeader);
 };
 struct Login : public DataHeader
 {
