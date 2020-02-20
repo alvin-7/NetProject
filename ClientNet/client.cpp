@@ -50,17 +50,15 @@ public:
 			Close();
 		}
 		//1. 建立套接字socket
-		SOCKET _sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		if (INVALID_SOCKET == _sock)
 		{
-			printf("Socket error!");
+			printf("Socket error!\n");
 			getchar();
 			Close();
 			return 0;
 		}
-		FD_ZERO(&fdMain);//将你的套节字集合清空
-		FD_SET(_sock, &fdMain);//加入你感兴趣的套节字到集合,这里是一个读数据的套节字s
-
+		printf("Socket Success!\n");
 		return 1;
 	}
 	//连接到服务器
@@ -87,6 +85,8 @@ public:
 			getchar();
 			return 0;
 		}
+		FD_ZERO(&fdMain);//将你的套节字集合清空
+		FD_SET(_sock, &fdMain);//加入你感兴趣的套节字到集合,这里是一个读数据的套节字s
 		printf("Connect Server Success!\n");
 		return 1;
 	}
@@ -142,7 +142,7 @@ public:
 	//判断当前sock是否正常
 	bool IsRun()
 	{
-		return INVALID_SOCKET != _sock;
+		return INVALID_SOCKET != _sock && g_bRun;
 	}
 
 	//接受数据
@@ -158,40 +158,10 @@ public:
 			printf("与服务器断开连接，任务结束！\n");
 			return false;
 		}
-		printf("收到 %d 命令：%d 数据长度：%d\n", _sock, header->cmd, header->dataLength);
+		printf("收到<Socket = %d> 命令：%d 数据长度：%d\n", _sock, header->cmd, header->dataLength);
 		recv(_sock, arrayRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
 		OnNetMsg(header);
 		return true;
-		////6. 接受服务器信息 recv
-		//DataHeader retHeader = {};
-		//int nlen = recv(_sock, (char*)&retHeader, sizeof(DataHeader), 0);
-		//if (!nlen > 0)
-		//{
-		//	printf("Recv Error!\n");
-		//}
-		//else
-		//{
-		//	switch (retHeader.cmd)
-		//	{
-		//	case CMD_LOGIN:
-		//	{
-		//		LoginResult loginRet = {};
-		//		recv(_sock, (char*)&loginRet + sizeof(DataHeader), sizeof(LoginResult) - sizeof(DataHeader), 0);
-		//		printf("接收到的信息：%d\n", loginRet.result);
-		//	}
-		//	break;
-		//	case CMD_LOGINOUT:
-		//	{
-		//		LoginoutResult loginoutRet = {};
-		//		recv(_sock, (char*)&loginoutRet + sizeof(DataHeader), sizeof(LoginoutResult) - sizeof(DataHeader), 0);
-		//		printf("接收到的信息：%d\n", loginoutRet.result);
-		//	}
-		//	break;
-		//	default:
-		//		printf("Error!\n");
-		//		break;
-		//	}
-		//}
 	}
 
 	//处理网络消息
@@ -227,13 +197,13 @@ public:
 		{
 			return SOCKET_ERROR;
 		}
-		return send(_sock, (char*)&header, header->dataLength, 0);
+		return send(_sock, (char*)header, header->dataLength, 0);
 	}
 };
 
 void CmdThread(CNetClient * client)
 {
-	while (true)
+	while (g_bRun)
 	{
 		//3. 输入请求命令
 		char cmdBuf[128] = {};

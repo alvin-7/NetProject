@@ -148,7 +148,7 @@ int DoProcessor(SOCKET _cSock)
 		printf("客户端已退出，任务结束！\n");
 		return 0;
 	}
-	printf("收到 %d 命令：%d 数据长度：%d\n", _cSock, header->cmd, header->dataLength);
+	printf("收到 <Socket = %d> 命令：%d 数据长度：%d\n", _cSock, header->cmd, header->dataLength);
 
 	//6. 处理请求并发送给客户端
 	printf("Handling Client...\n");
