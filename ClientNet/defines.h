@@ -1,6 +1,5 @@
 #pragma once
 
-#define PORT_ZY 7777
 
 bool g_bRun = true;
 
