@@ -1,9 +1,9 @@
-#define WIN32_LEAN_AND_MEAN
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
-
 #ifdef _WIN32
+	#define WIN32_LEAN_AND_MEAN
+	#define _WINSOCK_DEPRECATED_NO_WARNINGS
 	#include <windows.h>
 	#include <WinSock2.h>
+	#pragma comment(lib, "ws2_32.lib")
 #else
 	#include <unistd.h>
 	#include <arpa/inet.h>
@@ -18,9 +18,7 @@
 #include <thread>
 #include "defines.h"
 
-#pragma comment(lib, "ws2_32.lib")
 #pragma warning(disable:4996)
-
 
 
 int DoProcessor(SOCKET _cSock);
@@ -28,10 +26,13 @@ void CmdThread(SOCKET _sock);
 
 
 int main() {
+#ifdef _WIN32
 	WORD ver = MAKEWORD(2, 2);
 	WSADATA dat;
 	//启动Windows socket环境
 	WSAStartup(ver, &dat);
+#endif // _WIN32
+	
 	//1. 建立套接字socket
 	SOCKET _sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (INVALID_SOCKET == _sock)
@@ -44,7 +45,12 @@ int main() {
 	sockaddr_in _sin = {};
 	_sin.sin_family = AF_INET;
 	_sin.sin_port = htons(PORT_ZY);
+#ifdef _WIN32
 	_sin.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+#else
+	_sin.sin_addr.s_addr = inet_addr("127.0.0.1");
+#endif // _WIN32
+
 	int ret = connect(_sock, (sockaddr*)(&_sin), sizeof(sockaddr_in));
 	if (SOCKET_ERROR == ret)
 	{
@@ -68,7 +74,7 @@ int main() {
 		fd_set fdWrite = fdMain;
 		fd_set fdExp = fdMain;
 		timeval st = {1, 0};
-		int ret = select(0, &fdRead, 0, 0, &st);
+		int ret = select(_sock+1, &fdRead, 0, 0, &st);
 		if (ret < 0)
 		{
 			printf("select程序结束\n");
@@ -88,11 +94,18 @@ int main() {
 			}
 		}
 	}
+	FD_ZERO(&fdMain);//将你的套节字集合清空
+	
 
+#ifdef _WIN32
 	//7. 关闭套接字
 	closesocket(_sock);
 	//清除Windows socket环境
 	WSACleanup();
+#else
+	close(_sock);
+#endif // _WIN32
+
 	getchar();
 	return 0;
 }
@@ -203,10 +216,5 @@ void CmdThread(SOCKET _sock)
 				break;
 			}
 		}
-		Login login;
-		strcpy(login.uName, "name");
-		strcpy(login.uPassword, "mima");
-		send(_sock, (char*)&login, sizeof(Login), 0);
-		Sleep(1000);
 	}
 }

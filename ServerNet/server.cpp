@@ -1,33 +1,46 @@
-#define WIN32_LEAN_AND_MEAN
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#ifdef _WIN32
+	#define WIN32_LEAN_AND_MEAN
+	#define _WINSOCK_DEPRECATED_NO_WARNINGS
+	#include <windows.h>
+	#include <WinSock2.h>
+	#pragma comment(lib, "ws2_32.lib")
+#else
+	#include <unistd.h>
+	#include <arpa/inet.h>
+	#include <string.h>
 
-#include <windows.h>
-#include <WinSock2.h>
+	#define SOCKET int
+	#define INVALID_SOCKET  (SOCKET)(~0)
+	#define SOCKET_ERROR            (-1)
+#endif // _WIN32
+
 #include <stdio.h>
 #include <vector>
 #include "defines.h"
 
-#pragma comment(lib, "ws2_32.lib")
-
 using namespace std;
-
-
-//vector<SOCKET> g_clients;
 
 int DoProcessor(SOCKET _cSock);
 
 int main() {
+#ifdef _WIN32
 	WORD ver = MAKEWORD(2, 2);
 	WSADATA dat;
 	//启动Windows socket环境
 	WSAStartup(ver, &dat);
+#endif // _WIN32
 	//1. 建立套接字socket
 	SOCKET _sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	//2. bind 
 	sockaddr_in _sin = {};
 	_sin.sin_family = AF_INET;
 	_sin.sin_port = htons(PORT_ZY);//host to net unsigned short
+#ifdef _WIN32
 	_sin.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+#else
+	_sin.sin_addr.s_addr = inet_addr("127.0.0.1");
+#endif // _WIN32
+
 	if (SOCKET_ERROR == (bind(_sock, (sockaddr*)&_sin, sizeof(sockaddr_in))))
 	{
 		printf("Bind Error!\n");
@@ -48,12 +61,6 @@ int main() {
 	while(true)
 	{
 		fd_set fdRead = fdMain;
-
-		/*for (int i = (int)g_clients.size()-1; i >= 0; i--)
-		{
-			printf("FDSET\n");
-			FD_SET(g_clients[i], &fdRead);
-		}*/
 		
 		//nfds 是一个整数值，是指fd_set集合中所有描述符（socket）的范围，而不是数量
 		//即是所有文件描述符最大值+1（Windows平台下已处理，可写0）
@@ -63,7 +70,7 @@ int main() {
 		timeval st;
 		st.tv_sec = 1;
 		st.tv_usec = 0;
-		int ret = select(0, &fdRead, 0, 0, &st);
+		int ret = select(_sock+1, &fdRead, 0, 0, &st);
 		if (ret < 0)
 		{
 			printf("select失败，任务结束\n");
@@ -81,7 +88,20 @@ int main() {
 			sockaddr_in clientAddr = {};
 			int nAddrLen = sizeof(clientAddr);
 			SOCKET _cSock = INVALID_SOCKET;
-			_cSock = accept(_sock, (sockaddr*)&clientAddr, &nAddrLen);
+			SOCKET iMaxSock = _sock;
+			for (u_int i = 0; i < fdRead.fd_count; i++)
+			{
+				if (iMaxSock < fdRead.fd_array[i])
+				{
+					iMaxSock = fdRead.fd_array[i];
+				}
+			}
+#ifdef _WIN32
+			_cSock = accept(iMaxSock+1, (sockaddr*)&clientAddr, &nAddrLen);
+#else
+			_cSock = accept(iMaxSock+1, (sockaddr*)&clientAddr, (socklen_t*)&nAddrLen);
+#endif // _WIN32
+
 			if (INVALID_SOCKET == _cSock)
 			{
 				printf("Accept Error!\n");
@@ -89,8 +109,6 @@ int main() {
 			else
 			{
 				printf("新客户端加入 Socket: %d ; IP: %s\n", _cSock, (inet_ntoa)(clientAddr.sin_addr));
-				//g_clients.push_back(_cSock);
-				//FD_ZERO(&fdRead);//将你的套节字集合清空
 				FD_SET(_cSock, &fdMain);//加入套节字到集合,这里是一个读数据的套节字
 			}
 		}
@@ -98,11 +116,6 @@ int main() {
 		{
 			if (0 == DoProcessor(fdRead.fd_array[i])) //失败则清理cSock
 			{
-				/*auto iter = find(g_clients.begin(), g_clients.end(), fdRead.fd_array[i]);
-				if (iter != g_clients.end())
-				{
-					g_clients.erase(iter);
-				}*/
 				SOCKET socketTemp = fdRead.fd_array[i];
 				FD_CLR(socketTemp, &fdMain);
 				//释放
@@ -111,16 +124,14 @@ int main() {
 		}
 		//printf("空闲处理其他业务！\n");
 	}
-	/*for (u_int i = 0; i < fdMain.fd_count; i++)
-	{
-		SOCKET socketTemp = fdMain.fd_array[i];
-		FD_CLR(socketTemp, &fdMain);
-		closesocket(fdMain.fd_array[i]);
-	}*/
+#ifdef _WIN32
 	//7. 关闭套接字
 	closesocket(_sock);
 	//清除Windows socket环境
 	WSACleanup();
+#else
+	close(_sock);
+#endif // _WIN32
 	getchar();
 	return 0;
 }
