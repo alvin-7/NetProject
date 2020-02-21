@@ -27,6 +27,13 @@ private:
 	fd_set m_fdMain;		//创建一个用来装socket的结构体
 	fd_set fdRead = m_fdMain;
 
+	//消息接收暂存区 动态数组
+	char* m_arrayRecv = (char*)malloc(g_iRecvSize * sizeof(char));
+	//消息缓冲区 动态数组
+	char* m_MsgBuf = (char*)malloc(g_iRecvSize * 2 * sizeof(char));
+	//记录上次接收数据位置
+	int m_LastPos = 0;
+
 	bool m_bRun = true;		//是否运行
 public:
 	CNetServer()
@@ -129,7 +136,7 @@ public:
 			//4. accept 等待接受客户端连接
 			sockaddr_in clientAddr = {};
 			int nAddrLen = sizeof(clientAddr);
-			SOCKET _cSock = INVALID_SOCKET;
+			SOCKET cSock = INVALID_SOCKET;
 			SOCKET iMaxSock = m_sock;
 			for (u_int i = 0; i < fdRead.fd_count; i++)
 			{
@@ -139,19 +146,19 @@ public:
 				}
 			}
 			#ifdef _WIN32
-			_cSock = accept(iMaxSock + 1, (sockaddr*)&clientAddr, &nAddrLen);
+			cSock = accept(iMaxSock + 1, (sockaddr*)&clientAddr, &nAddrLen);
 			#else
-			_cSock = accept(iMaxSock + 1, (sockaddr*)&clientAddr, (socklen_t*)&nAddrLen);
+			cSock = accept(iMaxSock + 1, (sockaddr*)&clientAddr, (socklen_t*)&nAddrLen);
 			#endif // _WIN32
 
-			if (INVALID_SOCKET == _cSock)
+			if (INVALID_SOCKET == cSock)
 			{
 				printf("Accept Error!\n");
 			}
 			else
 			{
-				printf("新客户端加入 Socket: %d ; IP: %s\n", _cSock, (inet_ntoa)(clientAddr.sin_addr));
-				FD_SET(_cSock, &m_fdMain);//加入套节字到集合,这里是一个读数据的套节字
+				printf("新客户端加入 Socket: %d ; IP: %s\n", cSock, (inet_ntoa)(clientAddr.sin_addr));
+				FD_SET(cSock, &m_fdMain);//加入套节字到集合,这里是一个读数据的套节字
 			}
 		}
 	}
@@ -173,35 +180,72 @@ public:
 	}
 
 	//接收数据
-	bool RecvData(SOCKET _cSock)
+	bool RecvData(SOCKET cSock)
 	{
-		//缓冲区
-		char arrayRecv[1024] = {};
 		//5. 接受客户端数据
-		int nLen = recv(_cSock, arrayRecv, sizeof(DataHeader), 0);
-		DataHeader* header = (DataHeader*)arrayRecv;
+		int nLen = recv(cSock, m_arrayRecv, sizeof(m_arrayRecv), 0);
 		if (nLen <= 0)
 		{
-			printf("客户端已退出，任务结束！\n");
+			printf("<Socket=%d>客户端已退出，任务结束\n", cSock);
 			return false;
 		}
-		printf("收到 <Socket = %d> 命令：%d 数据长度：%d\n", _cSock, header->cmd, header->dataLength);
-		OnNetMsg(_cSock, header);
+		//将接收到的数据拷贝到消息缓冲区
+		memcpy(m_MsgBuf + m_LastPos, m_arrayRecv, nLen);
+		//消息缓冲区数据尾部位置后移
+		m_LastPos += nLen;
+		int iHandle = 0;
+		while (m_LastPos >= sizeof(DataHeader))
+		{
+			DataHeader* header = (DataHeader*)m_MsgBuf;
+			if (m_LastPos >= header->dataLength)
+			{
+				printf("收到 <Socket = %d> 命令：%d 数据长度：%d\n", cSock, header->cmd, header->dataLength);
+				OnNetMsg(cSock, header);
+				//剩余未处理消息缓冲区数据长度
+				m_LastPos -= header->dataLength;
+				if (m_LastPos > 0)
+				{
+					memcpy(m_MsgBuf, m_MsgBuf + header->dataLength, m_LastPos);
+				}
+				iHandle += 1;
+				if (0 != g_iMaxHandle and iHandle >= g_iMaxHandle)
+				{
+					break;
+				}
+			}
+			else
+			{
+				//消息缓冲区不足一条完整消息
+				break;
+			}
+		}
 		return true;
+		////缓冲区
+		//char arrayRecv[1024] = {};
+		////5. 接受客户端数据
+		//int nLen = recv(cSock, arrayRecv, sizeof(DataHeader), 0);
+		//DataHeader* header = (DataHeader*)arrayRecv;
+		//if (nLen <= 0)
+		//{
+		//	printf("客户端已退出，任务结束！\n");
+		//	return false;
+		//}
+		//printf("收到 <Socket = %d> 命令：%d 数据长度：%d\n", cSock, header->cmd, header->dataLength);
+		//OnNetMsg(cSock, header);
+		//return true;
 	}
 
 	//6. 处理请求并发送给客户端
-	virtual void OnNetMsg(SOCKET _cSock, DataHeader* header)
+	virtual void OnNetMsg(SOCKET cSock, DataHeader* header)
 	{
-		printf("OnNetMsg Client...\n");
+		printf("OnNetMsg Client<cSock=%d>...\n", cSock);
 		DataHeader data;
 		switch (header->cmd)
 		{
 		case CMD_LOGIN:
 		{
-			Login login = {};
-			recv(_cSock, (char*)&login + sizeof(DataHeader), sizeof(Login) - sizeof(DataHeader), 0);
-			printf("CMD_LOGIN name: %s ; password: %s\n", login.uName, login.uPassword);
+			Login* login = (Login*) header;
+			printf("CMD_LOGIN name: %s ; password: %s\n", login->uName, login->uPassword);
 			LoginResult ret;
 			ret.result = true;
 			data = (DataHeader)ret;
@@ -209,9 +253,8 @@ public:
 		break;
 		case CMD_LOGINOUT:
 		{
-			Loginout loginout = {};
-			recv(_cSock, (char*)&loginout + sizeof(DataHeader), sizeof(Loginout) - sizeof(DataHeader), 0);
-			printf("CMD_LOGIN name: %s\n", loginout.uName);
+			Loginout* loginout = (Loginout*)header;
+			printf("CMD_LOGIN name: %s\n", loginout->uName);
 			LoginoutResult ret;
 			ret.result = true;
 			data = (DataHeader)ret;
@@ -225,12 +268,12 @@ public:
 		}
 		break;
 		}
-		SendData(_cSock, &data);
+		SendData(cSock, &data);
 	}
 
-	void SendData(SOCKET _cSock, DataHeader * header)
+	void SendData(SOCKET cSock, DataHeader * header)
 	{
-		send(_cSock, (char*)header, header->dataLength, 0);
+		send(cSock, (char*)header, header->dataLength, 0);
 	}
 
 

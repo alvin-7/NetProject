@@ -1,5 +1,11 @@
 #pragma once
 
+
+//接收消息缓冲区大小
+int g_iRecvSize = 1024 * 1024;
+//每帧处理消息最大数 0表示能处理无限条
+int g_iMaxHandle = 0;
+
 enum CMD
 {
 	CMD_ERROR,

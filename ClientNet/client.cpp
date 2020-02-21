@@ -165,6 +165,7 @@ public:
 		memcpy(m_MsgBuf + m_LastPos, m_arrayRecv, nLen);
 		//消息缓冲区数据尾部位置后移
 		m_LastPos += nLen;
+		int iHandle = 0;
 		while (m_LastPos >= sizeof(DataHeader))
 		{
 			DataHeader* header = (DataHeader*)m_MsgBuf;
@@ -177,6 +178,11 @@ public:
 				if(m_LastPos > 0)
 				{
 				memcpy(m_MsgBuf, m_MsgBuf + header->dataLength, m_LastPos);
+				}
+				iHandle += 1;
+				if (0 != g_iMaxHandle and iHandle >= g_iMaxHandle)
+				{
+					break;
 				}
 			}
 			else
