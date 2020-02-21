@@ -1,12 +1,17 @@
 #include <stdio.h>
 #include <vector>
 #include "defines.h"
+#include "timestamp.hpp"
 
 using namespace std;
 
 class CNetServer
 {
 private:
+	//高精度计时器
+	CTimestamp m_tTime;
+	int m_RecvCount = 0;
+
 	SOCKET m_Sock;
 	fd_set m_FdMain;		//创建一个用来装socket的结构体
 	fd_set m_FdRead = m_FdMain;
@@ -129,11 +134,11 @@ public:
 					iMaxSock = m_FdRead.fd_array[i];
 				}
 			}
-			#ifdef _WIN32
+#ifdef _WIN32
 			cSock = accept(iMaxSock + 1, (sockaddr*)&clientAddr, &nAddrLen);
-			#else
+#else
 			cSock = accept(iMaxSock + 1, (sockaddr*)&clientAddr, (socklen_t*)&nAddrLen);
-			#endif // _WIN32
+#endif // _WIN32
 
 			if (INVALID_SOCKET == cSock)
 			{
@@ -145,6 +150,7 @@ public:
 				FD_SET(cSock, &m_FdMain);//加入套节字到集合,这里是一个读数据的套节字
 			}
 		}
+		return true;
 	}
 
 	//处理客户端消息
@@ -209,6 +215,13 @@ public:
 	//6. 处理请求并发送给客户端
 	virtual void OnNetMsg(SOCKET cSock, DataHeader* header)
 	{
+		m_RecvCount++;
+		double t1 = m_tTime.GetElapsedSecond();
+		if (t1 >= 1.0)
+		{
+			printf("Scoket: %d, recvCount: %d, time: %lf\n", cSock, m_RecvCount, t1);
+			m_tTime.Update();
+		}
 		printf("OnNetMsg Client<cSock=%d>...\n", cSock);
 		DataHeader data;
 		switch (header->cmd)
