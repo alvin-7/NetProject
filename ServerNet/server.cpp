@@ -46,6 +46,11 @@ public:
 		//启动Windows socket环境
 		WSAStartup(ver, &dat);
 		#endif // _WIN32
+		if (INVALID_SOCKET != m_sock)
+		{
+			printf("关闭旧连接<socket = %d>！\n", m_sock);
+			Close();
+		}
 		//1. 建立套接字socket
 		m_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		if (SOCKET_ERROR == m_sock)

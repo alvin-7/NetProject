@@ -3,6 +3,8 @@
 
 bool g_bRun = true;
 
+int g_iRecvSize = 1024 * 1024;
+
 
 enum CMD
 {

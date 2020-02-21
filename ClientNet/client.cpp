@@ -24,12 +24,18 @@
 class CNetClient
 {
 private:
-	SOCKET _sock;
-	fd_set fdMain;	//创建一个用来装socket的结构体
+	SOCKET m_sock;
+	fd_set m_fdMain;	//创建一个用来装socket的结构体
+	//消息接收暂存区 动态数组
+	char* m_arrayRecv = (char*)malloc(g_iRecvSize * sizeof(char));
+	//消息缓冲区 动态数组
+	char* m_MsgBuf = (char*)malloc(g_iRecvSize * 2 * sizeof(char));
+	//记录上次接收数据位置
+	int m_LastPos = 0;
 public:
 	CNetClient()
 	{
-		_sock = INVALID_SOCKET;
+		m_sock = INVALID_SOCKET;
 	}
 	virtual ~CNetClient()
 	{
@@ -44,14 +50,14 @@ public:
 		//启动Windows socket环境
 		WSAStartup(ver, &dat);
 		#endif // _WIN32
-		if (INVALID_SOCKET != _sock)
+		if (INVALID_SOCKET != m_sock)
 		{
-			printf("关闭旧连接<socket = %d>！\n", _sock);
+			printf("关闭旧连接<socket = %d>！\n", m_sock);
 			Close();
 		}
 		//1. 建立套接字socket
-		_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-		if (INVALID_SOCKET == _sock)
+		m_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		if (INVALID_SOCKET == m_sock)
 		{
 			printf("Socket error!\n");
 			getchar();
@@ -64,7 +70,7 @@ public:
 	//连接到服务器
 	bool Connect(const char* ip, unsigned short port)
 	{
-		if (INVALID_SOCKET == _sock)
+		if (INVALID_SOCKET == m_sock)
 		{
 			InitSocket();
 		}
@@ -78,30 +84,30 @@ public:
 		_sin.sin_addr.s_addr = inet_addr(ip);
 		#endif // _WIN32
 
-		int ret = connect(_sock, (sockaddr*)&_sin, sizeof(sockaddr_in));
+		int ret = connect(m_sock, (sockaddr*)&_sin, sizeof(sockaddr_in));
 		if (SOCKET_ERROR == ret)
 		{
 			printf("Connect Error!\n");
 			getchar();
 			return 0;
 		}
-		FD_ZERO(&fdMain);//将你的套节字集合清空
-		FD_SET(_sock, &fdMain);//加入你感兴趣的套节字到集合,这里是一个读数据的套节字s
+		FD_ZERO(&m_fdMain);//将你的套节字集合清空
+		FD_SET(m_sock, &m_fdMain);//加入你感兴趣的套节字到集合,这里是一个读数据的套节字s
 		printf("Connect Server Success!\n");
 		return 1;
 	}
 	//关闭socket
 	void Close()
 	{
-		FD_ZERO(&fdMain);//将你的套节字集合清空
+		FD_ZERO(&m_fdMain);//将你的套节字集合清空
 
 		#ifdef _WIN32
 		//7. 关闭套接字
-		closesocket(_sock);
+		closesocket(m_sock);
 		//清除Windows socket环境
 		WSACleanup();
 		#else
-		close(_sock);
+		close(m_sock);
 		#endif // _WIN32
 
 		getchar();
@@ -113,11 +119,11 @@ public:
 		{
 			return false;
 		}
-		fd_set fdRead = fdMain;
-		fd_set fdWrite = fdMain;
-		fd_set fdExp = fdMain;
+		fd_set fdRead = m_fdMain;
+		fd_set fdWrite = m_fdMain;
+		fd_set fdExp = m_fdMain;
 		timeval st = { 1, 0 };
-		int ret = select(_sock + 1, &fdRead, 0, 0, &st);
+		int ret = select(m_sock + 1, &fdRead, 0, 0, &st);
 		if (ret < 0)
 		{
 			printf("select程序结束\n");
@@ -127,10 +133,10 @@ public:
 		{
 			//printf("空闲处理其他业务！\n");
 		}
-		if (FD_ISSET(_sock, &fdRead))
+		if (FD_ISSET(m_sock, &fdRead))
 		{
-			FD_CLR(_sock, &fdRead);
-			if (0 == RecvData(_sock))
+			FD_CLR(m_sock, &fdRead);
+			if (0 == RecvData(m_sock))
 			{
 				printf("select任务结束！\n");
 				return false;
@@ -142,25 +148,43 @@ public:
 	//判断当前sock是否正常
 	bool IsRun()
 	{
-		return INVALID_SOCKET != _sock && g_bRun;
+		return INVALID_SOCKET != m_sock && g_bRun;
 	}
 
 	//接受数据
-	bool RecvData(SOCKET _sock)
-	{
-		//缓冲区
-		char arrayRecv[1024] = {};
+	bool RecvData(SOCKET sock)
+	{	
 		//5. 接受客户端数据
-		int nLen = recv(_sock, arrayRecv, sizeof(DataHeader), 0);
-		DataHeader* header = (DataHeader*)arrayRecv;
+		int nLen = recv(sock, m_arrayRecv, sizeof(m_arrayRecv), 0);
 		if (nLen <= 0)
 		{
-			printf("与服务器断开连接，任务结束！\n");
+			printf("<Socket=%d>与服务器断开连接，任务结束\n", sock);
 			return false;
 		}
-		printf("收到<Socket = %d> 命令：%d 数据长度：%d\n", _sock, header->cmd, header->dataLength);
-		recv(_sock, arrayRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
-		OnNetMsg(header);
+		//将接收到的数据拷贝到消息缓冲区
+		memcpy(m_MsgBuf + m_LastPos, m_arrayRecv, nLen);
+		//消息缓冲区数据尾部位置后移
+		m_LastPos += nLen;
+		while (m_LastPos >= sizeof(DataHeader))
+		{
+			DataHeader* header = (DataHeader*)m_MsgBuf;
+			if (m_LastPos >= header->dataLength)
+			{
+				printf("收到<Socket = %d> 命令：%d 数据长度：%d\n", sock, header->cmd, header->dataLength);
+				OnNetMsg(header);
+				//剩余未处理消息缓冲区数据长度
+				m_LastPos -= header->dataLength;
+				if(m_LastPos > 0)
+				{
+				memcpy(m_MsgBuf, m_MsgBuf + header->dataLength, m_LastPos);
+				}
+			}
+			else
+			{
+				//消息缓冲区不足一条完整消息
+				break;
+			}
+		}
 		return true;
 	}
 
@@ -197,7 +221,7 @@ public:
 		{
 			return SOCKET_ERROR;
 		}
-		return send(_sock, (char*)header, header->dataLength, 0);
+		return send(m_sock, (char*)header, header->dataLength, 0);
 	}
 };
 
