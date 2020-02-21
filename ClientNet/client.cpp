@@ -1,19 +1,3 @@
-#ifdef _WIN32
-	#define WIN32_LEAN_AND_MEAN
-	#define _WINSOCK_DEPRECATED_NO_WARNINGS
-	#include <windows.h>
-	#include <WinSock2.h>
-	#pragma comment(lib, "ws2_32.lib")
-#else
-	#include <unistd.h>
-	#include <arpa/inet.h>
-	#include <string.h>
-	
-	#define SOCKET int
-	#define INVALID_SOCKET  (SOCKET)(~0)
-	#define SOCKET_ERROR            (-1)
-#endif // _WIN32
-
 #include <stdio.h>
 #include <thread>
 #include "defines.h"
@@ -27,9 +11,9 @@ private:
 	SOCKET m_sock;
 	fd_set m_fdMain;	//创建一个用来装socket的结构体
 	//消息接收暂存区 动态数组
-	char* m_arrayRecv = (char*)malloc(g_iRecvSize * sizeof(char));
+	char m_ArrayRecv[RECV_BUFF_SIZE] = {};
 	//消息缓冲区 动态数组
-	char* m_MsgBuf = (char*)malloc(g_iRecvSize * 2 * sizeof(char));
+	char m_MsgBuf[RECV_BUFF_SIZE * 2] = {};
 	//记录上次接收数据位置
 	int m_LastPos = 0;
 public:
@@ -155,14 +139,14 @@ public:
 	bool RecvData(SOCKET sock)
 	{	
 		//5. 接受客户端数据
-		int nLen = recv(sock, m_arrayRecv, sizeof(m_arrayRecv), 0);
+		int nLen = recv(sock, m_ArrayRecv, RECV_BUFF_SIZE, 0);
 		if (nLen <= 0)
 		{
 			printf("<Socket=%d>与服务器断开连接，任务结束\n", sock);
 			return false;
 		}
 		//将接收到的数据拷贝到消息缓冲区
-		memcpy(m_MsgBuf + m_LastPos, m_arrayRecv, nLen);
+		memcpy(m_MsgBuf + m_LastPos, m_ArrayRecv, nLen);
 		//消息缓冲区数据尾部位置后移
 		m_LastPos += nLen;
 		int iHandle = 0;
@@ -180,7 +164,7 @@ public:
 				memcpy(m_MsgBuf, m_MsgBuf + header->dataLength, m_LastPos);
 				}
 				iHandle += 1;
-				if (0 != g_iMaxHandle and iHandle >= g_iMaxHandle)
+				if (0 != RECV_HANDLE_SIZE and iHandle >= RECV_HANDLE_SIZE)
 				{
 					break;
 				}

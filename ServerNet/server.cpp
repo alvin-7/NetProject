@@ -1,19 +1,3 @@
-#ifdef _WIN32
-	#define WIN32_LEAN_AND_MEAN
-	#define _WINSOCK_DEPRECATED_NO_WARNINGS
-	#include <windows.h>
-	#include <WinSock2.h>
-	#pragma comment(lib, "ws2_32.lib")
-#else
-	#include <unistd.h>
-	#include <arpa/inet.h>
-	#include <string.h>
-
-	#define SOCKET int
-	#define INVALID_SOCKET  (SOCKET)(~0)
-	#define SOCKET_ERROR            (-1)
-#endif // _WIN32
-
 #include <stdio.h>
 #include <vector>
 #include "defines.h"
@@ -23,14 +7,14 @@ using namespace std;
 class CNetServer
 {
 private:
-	SOCKET m_sock;
-	fd_set m_fdMain;		//创建一个用来装socket的结构体
-	fd_set fdRead = m_fdMain;
+	SOCKET m_Sock;
+	fd_set m_FdMain;		//创建一个用来装socket的结构体
+	fd_set m_FdRead = m_FdMain;
 
 	//消息接收暂存区 动态数组
-	char* m_arrayRecv = (char*)malloc(g_iRecvSize * sizeof(char));
+	char m_ArrayRecv[RECV_BUFF_SIZE] = {};
 	//消息缓冲区 动态数组
-	char* m_MsgBuf = (char*)malloc(g_iRecvSize * 2 * sizeof(char));
+	char m_MsgBuf[RECV_BUFF_SIZE * 2] = {};
 	//记录上次接收数据位置
 	int m_LastPos = 0;
 
@@ -38,7 +22,7 @@ private:
 public:
 	CNetServer()
 	{
-		m_sock = INVALID_SOCKET;
+		m_Sock = INVALID_SOCKET;
 	}
 	virtual ~CNetServer()
 	{
@@ -53,22 +37,22 @@ public:
 		//启动Windows socket环境
 		WSAStartup(ver, &dat);
 		#endif // _WIN32
-		if (INVALID_SOCKET != m_sock)
+		if (INVALID_SOCKET != m_Sock)
 		{
-			printf("关闭旧连接<socket = %d>！\n", m_sock);
+			printf("关闭旧连接<socket = %d>！\n", m_Sock);
 			Close();
 		}
 		//1. 建立套接字socket
-		m_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-		if (SOCKET_ERROR == m_sock)
+		m_Sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		if (SOCKET_ERROR == m_Sock)
 		{
 			printf("Socket Error!\n");
 			return false;
 		}
 		printf("Socket Success!\n");
 
-		FD_ZERO(&m_fdMain);//将你的套节字集合清空
-		FD_SET(m_sock, &m_fdMain);//加入你感兴趣的套节字到集合,这里是一个读数据的套节字s
+		FD_ZERO(&m_FdMain);//将你的套节字集合清空
+		FD_SET(m_Sock, &m_FdMain);//加入你感兴趣的套节字到集合,这里是一个读数据的套节字s
 		return true;
 	}
 
@@ -84,7 +68,7 @@ public:
 		#else
 		_sin.sin_addr.s_addr = inet_addr(ip);
 		#endif // _WIN32
-		if (SOCKET_ERROR == (bind(m_sock, (sockaddr*)&_sin, sizeof(sockaddr_in))))
+		if (SOCKET_ERROR == (bind(m_Sock, (sockaddr*)&_sin, sizeof(sockaddr_in))))
 		{
 			printf("Bind Error!\n");
 			return false;
@@ -97,7 +81,7 @@ public:
 	bool Listen(short num)
 	{
 		//3. listen,第二个参数表示默认多少人能连接
-		if (SOCKET_ERROR == listen(m_sock, num))
+		if (SOCKET_ERROR == listen(m_Sock, num))
 		{
 			printf("Listen Error!\n");
 			return false;
@@ -109,7 +93,7 @@ public:
 	//连接客户端，并加入fdRead
 	bool Accept()
 	{
-		fdRead = m_fdMain;
+		m_FdRead = m_FdMain;
 		timeval st = { 1, 0 };	//select 超时参数
 
 		//nfds 是一个整数值，是指fd_set集合中所有描述符（socket）的范围，而不是数量
@@ -117,7 +101,7 @@ public:
 		//第一个参数不管,是兼容目的,最后的是超时标准,select是阻塞操作
 		//当然要设置超时事件.
 		//接着的三个类型为fd_set的参数分别是用于检查套节字的可读性, 可写性, 和列外数据性质.
-		int ret = select(m_sock + 1, &fdRead, 0, 0, &st);
+		int ret = select(m_Sock + 1, &m_FdRead, 0, 0, &st);
 		//负值：select错误
 		if (ret < 0)
 		{
@@ -130,19 +114,19 @@ public:
 		{
 			return true;
 		}
-		if (FD_ISSET(m_sock, &fdRead)) //判断文件描述符fdRead是否在集合_sock中
+		if (FD_ISSET(m_Sock, &m_FdRead)) //判断文件描述符fdRead是否在集合_sock中
 		{
-			FD_CLR(m_sock, &fdRead);
+			FD_CLR(m_Sock, &m_FdRead);
 			//4. accept 等待接受客户端连接
 			sockaddr_in clientAddr = {};
 			int nAddrLen = sizeof(clientAddr);
 			SOCKET cSock = INVALID_SOCKET;
-			SOCKET iMaxSock = m_sock;
-			for (u_int i = 0; i < fdRead.fd_count; i++)
+			SOCKET iMaxSock = m_Sock;
+			for (u_int i = 0; i < m_FdRead.fd_count; i++)
 			{
-				if (iMaxSock < fdRead.fd_array[i])
+				if (iMaxSock < m_FdRead.fd_array[i])
 				{
-					iMaxSock = fdRead.fd_array[i];
+					iMaxSock = m_FdRead.fd_array[i];
 				}
 			}
 			#ifdef _WIN32
@@ -158,7 +142,7 @@ public:
 			else
 			{
 				printf("新客户端加入 Socket: %d ; IP: %s\n", cSock, (inet_ntoa)(clientAddr.sin_addr));
-				FD_SET(cSock, &m_fdMain);//加入套节字到集合,这里是一个读数据的套节字
+				FD_SET(cSock, &m_FdMain);//加入套节字到集合,这里是一个读数据的套节字
 			}
 		}
 	}
@@ -166,12 +150,12 @@ public:
 	//处理客户端消息
 	bool OnRun()
 	{
-		for (u_int i = 0; i < fdRead.fd_count; i++)
+		for (u_int i = 0; i < m_FdRead.fd_count; i++)
 		{
-			if (false == RecvData(fdRead.fd_array[i])) //失败则清理cSock
+			if (false == RecvData(m_FdRead.fd_array[i])) //失败则清理cSock
 			{
-				SOCKET socketTemp = fdRead.fd_array[i];
-				FD_CLR(socketTemp, &m_fdMain);
+				SOCKET socketTemp = m_FdRead.fd_array[i];
+				FD_CLR(socketTemp, &m_FdMain);
 				//释放
 				closesocket(socketTemp);
 			}
@@ -183,14 +167,14 @@ public:
 	bool RecvData(SOCKET cSock)
 	{
 		//5. 接受客户端数据
-		int nLen = recv(cSock, m_arrayRecv, sizeof(m_arrayRecv), 0);
+		int nLen = recv(cSock, m_ArrayRecv, RECV_BUFF_SIZE, 0);
 		if (nLen <= 0)
 		{
 			printf("<Socket=%d>客户端已退出，任务结束\n", cSock);
 			return false;
 		}
 		//将接收到的数据拷贝到消息缓冲区
-		memcpy(m_MsgBuf + m_LastPos, m_arrayRecv, nLen);
+		memcpy(m_MsgBuf + m_LastPos, m_ArrayRecv, nLen);
 		//消息缓冲区数据尾部位置后移
 		m_LastPos += nLen;
 		int iHandle = 0;
@@ -208,7 +192,7 @@ public:
 					memcpy(m_MsgBuf, m_MsgBuf + header->dataLength, m_LastPos);
 				}
 				iHandle += 1;
-				if (0 != g_iMaxHandle and iHandle >= g_iMaxHandle)
+				if (0 != RECV_HANDLE_SIZE and iHandle >= RECV_HANDLE_SIZE)
 				{
 					break;
 				}
@@ -220,19 +204,6 @@ public:
 			}
 		}
 		return true;
-		////缓冲区
-		//char arrayRecv[1024] = {};
-		////5. 接受客户端数据
-		//int nLen = recv(cSock, arrayRecv, sizeof(DataHeader), 0);
-		//DataHeader* header = (DataHeader*)arrayRecv;
-		//if (nLen <= 0)
-		//{
-		//	printf("客户端已退出，任务结束！\n");
-		//	return false;
-		//}
-		//printf("收到 <Socket = %d> 命令：%d 数据长度：%d\n", cSock, header->cmd, header->dataLength);
-		//OnNetMsg(cSock, header);
-		//return true;
 	}
 
 	//6. 处理请求并发送给客户端
@@ -286,7 +257,7 @@ public:
 	{
 		#ifdef _WIN32
 		//7. 关闭套接字
-		closesocket(m_sock);
+		closesocket(m_Sock);
 		//清除Windows socket环境
 		WSACleanup();
 		#else

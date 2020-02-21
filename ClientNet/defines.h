@@ -1,12 +1,33 @@
 #pragma once
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#include <windows.h>
+#include <WinSock2.h>
+#pragma comment(lib, "ws2_32.lib")
+#else
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <string.h>
 
-bool g_bRun = true;
+#define SOCKET int
+#define INVALID_SOCKET  (SOCKET)(~0)
+#define SOCKET_ERROR            (-1)
+#endif // _WIN32
 
 //接收消息缓冲区大小
-int g_iRecvSize = 1024 * 1024;
+#ifndef RECV_BUFF_SIZE
+#define RECV_BUFF_SIZE 10240
+#endif // !RECV_BUFF_SIZE
+
 //每帧处理消息最大数 0表示能处理无限条
-int g_iMaxHandle = 0;
+#ifndef RECV_HANDLE_SIZE
+#define RECV_HANDLE_SIZE 0
+#endif // !RECV_HANDLE_SIZE
+
+
+bool g_bRun = true;
 
 
 enum CMD
