@@ -8,8 +8,8 @@
 class CNetClient
 {
 private:
-	SOCKET m_sock;
-	fd_set m_fdMain;	//创建一个用来装socket的结构体
+	SOCKET m_Sock;
+	fd_set m_FdMain;	//创建一个用来装socket的结构体
 	//消息接收暂存区 动态数组
 	char m_ArrayRecv[RECV_BUFF_SIZE] = {};
 	//消息缓冲区 动态数组
@@ -19,7 +19,7 @@ private:
 public:
 	CNetClient()
 	{
-		m_sock = INVALID_SOCKET;
+		m_Sock = INVALID_SOCKET;
 	}
 	virtual ~CNetClient()
 	{
@@ -34,14 +34,14 @@ public:
 		//启动Windows socket环境
 		WSAStartup(ver, &dat);
 		#endif // _WIN32
-		if (INVALID_SOCKET != m_sock)
+		if (INVALID_SOCKET != m_Sock)
 		{
-			printf("关闭旧连接<socket = %d>！\n", m_sock);
+			printf("关闭旧连接<socket = %d>！\n", m_Sock);
 			Close();
 		}
 		//1. 建立套接字socket
-		m_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-		if (INVALID_SOCKET == m_sock)
+		m_Sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		if (INVALID_SOCKET == m_Sock)
 		{
 			printf("Socket error!\n");
 			getchar();
@@ -54,7 +54,7 @@ public:
 	//连接到服务器
 	bool Connect(const char* ip, unsigned short port)
 	{
-		if (INVALID_SOCKET == m_sock)
+		if (INVALID_SOCKET == m_Sock)
 		{
 			InitSocket();
 		}
@@ -68,30 +68,30 @@ public:
 		_sin.sin_addr.s_addr = inet_addr(ip);
 		#endif // _WIN32
 
-		int ret = connect(m_sock, (sockaddr*)&_sin, sizeof(sockaddr_in));
+		int ret = connect(m_Sock, (sockaddr*)&_sin, sizeof(sockaddr_in));
 		if (SOCKET_ERROR == ret)
 		{
 			printf("Connect Error!\n");
 			getchar();
 			return 0;
 		}
-		FD_ZERO(&m_fdMain);//将你的套节字集合清空
-		FD_SET(m_sock, &m_fdMain);//加入你感兴趣的套节字到集合,这里是一个读数据的套节字s
+		FD_ZERO(&m_FdMain);//将你的套节字集合清空
+		FD_SET(m_Sock, &m_FdMain);//加入你感兴趣的套节字到集合,这里是一个读数据的套节字s
 		printf("Connect Server Success!\n");
 		return 1;
 	}
 	//关闭socket
 	void Close()
 	{
-		FD_ZERO(&m_fdMain);//将你的套节字集合清空
+		FD_ZERO(&m_FdMain);//将你的套节字集合清空
 
 		#ifdef _WIN32
 		//7. 关闭套接字
-		closesocket(m_sock);
+		closesocket(m_Sock);
 		//清除Windows socket环境
 		WSACleanup();
 		#else
-		close(m_sock);
+		close(m_Sock);
 		#endif // _WIN32
 
 		getchar();
@@ -103,11 +103,11 @@ public:
 		{
 			return false;
 		}
-		fd_set fdRead = m_fdMain;
-		fd_set fdWrite = m_fdMain;
-		fd_set fdExp = m_fdMain;
+		fd_set fdRead = m_FdMain;
+		fd_set fdWrite = m_FdMain;
+		fd_set fdExp = m_FdMain;
 		timeval st = { 1, 0 };
-		int ret = select(m_sock + 1, &fdRead, 0, 0, &st);
+		int ret = select(m_Sock + 1, &fdRead, 0, 0, &st);
 		if (ret < 0)
 		{
 			printf("select程序结束\n");
@@ -117,10 +117,10 @@ public:
 		{
 			//printf("空闲处理其他业务！\n");
 		}
-		if (FD_ISSET(m_sock, &fdRead))
+		if (FD_ISSET(m_Sock, &fdRead))
 		{
-			FD_CLR(m_sock, &fdRead);
-			if (0 == RecvData(m_sock))
+			FD_CLR(m_Sock, &fdRead);
+			if (0 == RecvData(m_Sock))
 			{
 				printf("select任务结束！\n");
 				return false;
@@ -132,7 +132,7 @@ public:
 	//判断当前sock是否正常
 	bool IsRun()
 	{
-		return INVALID_SOCKET != m_sock && g_bRun;
+		return INVALID_SOCKET != m_Sock && g_bRun;
 	}
 
 	//接受数据
@@ -211,7 +211,7 @@ public:
 		{
 			return SOCKET_ERROR;
 		}
-		return send(m_sock, (char*)header, header->dataLength, 0);
+		return send(m_Sock, (char*)header, header->dataLength, 0);
 	}
 };
 
@@ -253,26 +253,85 @@ void CmdThread(CNetClient * client)
 	}
 }
 
+bool Test();
+
 int main() 
 {
-	CNetClient client;
-	client.InitSocket();
-	bool ret = client.Connect("127.0.0.1", 7777);
-	if (false == ret)
-	{
-		return false;
-	}
-	//启动输入线程
-	std::thread  t1(CmdThread, &client);
-	t1.detach();
+	return Test();
+	//CNetClient client;
+	//client.InitSocket();
+	//bool ret = client.Connect("127.0.0.1", 7777);
+	//if (false == ret)
+	//{
+	//	return false;
+	//}
+	////启动输入线程
+	//std::thread  t1(CmdThread, &client);
+	//t1.detach();
 
-	while (client.IsRun())
+	//while (client.IsRun())
+	//{
+	//	if (!client.OnRun())
+	//	{
+	//		break;
+	//	}
+	//}
+	//client.Close();
+	//return true;
+}
+
+bool Test()
+{
+	const int iCount = 1000;
+	CNetClient* clientsLst[iCount];
+	for (int i = 0; i < iCount; i++)
 	{
-		if (!client.OnRun())
+		if (!g_bRun)
 		{
-			break;
+			return 0;
+		}
+		clientsLst[i] = new CNetClient();
+	}
+	for (int i = 0; i < iCount; i++)
+	{
+		if (!g_bRun)
+		{
+			return 0;
+		}
+		clientsLst[i]->Connect("127.0.0.1", 7777);
+		printf("Connect<%d> Suceess!\n", i);
+	}
+
+	LoginResult loginResult;
+	loginResult.result = true;
+	while (g_bRun)
+	{
+		int isDisconnect = 0;
+		for (int i = 0; i < iCount; i++)
+		{
+			clientsLst[i]->SendData(&loginResult);
+			//Sleep(100);
+			/*if(!clientsLst[i]->OnRun())
+			{
+				isDisconnect += 1;
+				if (isDisconnect >= iCount)
+				{
+					printf("GameOver!\n");
+					getchar();
+					return false;
+				}
+			}
+			else
+			{
+				printf("Sending...\n");
+				clientsLst[i]->SendData(&login);
+			}*/
 		}
 	}
-	client.Close();
+	for (int i = 0; i < iCount; i++)
+	{
+		clientsLst[i]->Close();
+		delete clientsLst[i];
+	}
 	return true;
 }

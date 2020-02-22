@@ -134,11 +134,11 @@ public:
 					iMaxSock = m_FdRead.fd_array[i];
 				}
 			}
-#ifdef _WIN32
+			#ifdef _WIN32
 			cSock = accept(iMaxSock + 1, (sockaddr*)&clientAddr, &nAddrLen);
-#else
+			#else
 			cSock = accept(iMaxSock + 1, (sockaddr*)&clientAddr, (socklen_t*)&nAddrLen);
-#endif // _WIN32
+			#endif // _WIN32
 
 			if (INVALID_SOCKET == cSock)
 			{
@@ -183,13 +183,14 @@ public:
 		memcpy(m_MsgBuf + m_LastPos, m_ArrayRecv, nLen);
 		//消息缓冲区数据尾部位置后移
 		m_LastPos += nLen;
+		//printf("%d\n", m_LastPos);
 		int iHandle = 0;
 		while (m_LastPos >= sizeof(DataHeader))
 		{
 			DataHeader* header = (DataHeader*)m_MsgBuf;
 			if (m_LastPos >= header->dataLength)
 			{
-				printf("收到 <Socket = %d> 命令：%d 数据长度：%d\n", cSock, header->cmd, header->dataLength);
+				//printf("收到 <Socket = %d> 命令：%d 数据长度：%d\n", cSock, header->cmd, header->dataLength);
 				OnNetMsg(cSock, header);
 				//剩余未处理消息缓冲区数据长度
 				m_LastPos -= header->dataLength;
@@ -220,16 +221,17 @@ public:
 		if (t1 >= 1.0)
 		{
 			printf("Scoket: %d, recvCount: %d, time: %lf\n", cSock, m_RecvCount, t1);
+			m_RecvCount = 0;
 			m_tTime.Update();
 		}
-		printf("OnNetMsg Client<cSock=%d>...\n", cSock);
+		//printf("OnNetMsg Client<cSock=%d>...\n", cSock);
 		DataHeader data;
 		switch (header->cmd)
 		{
 		case CMD_LOGIN:
 		{
 			Login* login = (Login*) header;
-			printf("CMD_LOGIN name: %s ; password: %s\n", login->uName, login->uPassword);
+			//printf("CMD_LOGIN name: %s ; password: %s\n", login->uName, login->uPassword);
 			LoginResult ret;
 			ret.result = true;
 			data = (DataHeader)ret;
@@ -238,7 +240,7 @@ public:
 		case CMD_LOGINOUT:
 		{
 			Loginout* loginout = (Loginout*)header;
-			printf("CMD_LOGIN name: %s\n", loginout->uName);
+			//printf("CMD_LOGIN name: %s\n", loginout->uName);
 			LoginoutResult ret;
 			ret.result = true;
 			data = (DataHeader)ret;
@@ -299,7 +301,7 @@ int main()
 	{
 		server.Accept();
 		server.OnRun();
-		printf("空闲处理其他业务！\n");
+		//printf("空闲处理其他业务！\n");
 	}
 	getchar();
 	return true;
