@@ -5,29 +5,33 @@
 
 using namespace std;
 
+int iMaxClient = 0;
+
+class CBaseServer
+{
+public:
+	CBaseServer()
+	{
+
+	}
+	~CBaseServer()
+	{
+
+	}
+
+private:
+
+};
+
+
 class CNetServer
 {
-private:
-	//高精度计时器
-	CTimestamp m_tTime;
-	int m_RecvCount = 0;
-
-	SOCKET m_Sock;
-	fd_set m_FdMain;		//创建一个用来装socket的结构体
-	fd_set m_FdRead = m_FdMain;
-
-	//消息接收暂存区 动态数组
-	char m_ArrayRecv[RECV_BUFF_SIZE] = {};
-	//消息缓冲区 动态数组
-	char m_MsgBuf[RECV_BUFF_SIZE * 2] = {};
-	//记录上次接收数据位置
-	int m_LastPos = 0;
-
-	bool m_bRun = true;		//是否运行
 public:
 	CNetServer()
 	{
 		m_Sock = INVALID_SOCKET;
+		m_LastPos = 0;
+		memset(m_MsgBuf, 0, sizeof(m_MsgBuf));
 	}
 	virtual ~CNetServer()
 	{
@@ -100,13 +104,12 @@ public:
 	{
 		m_FdRead = m_FdMain;
 		timeval st = { 1, 0 };	//select 超时参数
-
 		//nfds 是一个整数值，是指fd_set集合中所有描述符（socket）的范围，而不是数量
 		//即是所有文件描述符最大值+1（Windows平台下已处理，可写0）
 		//第一个参数不管,是兼容目的,最后的是超时标准,select是阻塞操作
 		//当然要设置超时事件.
 		//接着的三个类型为fd_set的参数分别是用于检查套节字的可读性, 可写性, 和列外数据性质.
-		int ret = select(m_Sock + 1, &m_FdRead, 0, 0, &st);
+		int ret = select(0, &m_FdRead, 0, 0, &st);
 		//负值：select错误
 		if (ret < 0)
 		{
@@ -124,20 +127,13 @@ public:
 			FD_CLR(m_Sock, &m_FdRead);
 			//4. accept 等待接受客户端连接
 			sockaddr_in clientAddr = {};
-			int nAddrLen = sizeof(clientAddr);
+			int nAddrLen = sizeof(sockaddr_in);
 			SOCKET cSock = INVALID_SOCKET;
-			SOCKET iMaxSock = m_Sock;
-			for (u_int i = 0; i < m_FdRead.fd_count; i++)
-			{
-				if (iMaxSock < m_FdRead.fd_array[i])
-				{
-					iMaxSock = m_FdRead.fd_array[i];
-				}
-			}
+			
 			#ifdef _WIN32
-			cSock = accept(iMaxSock + 1, (sockaddr*)&clientAddr, &nAddrLen);
+			cSock = accept(m_Sock, (sockaddr*)&clientAddr, &nAddrLen);
 			#else
-			cSock = accept(iMaxSock + 1, (sockaddr*)&clientAddr, (socklen_t*)&nAddrLen);
+			cSock = accept(m_Sock, (sockaddr*)&clientAddr, (socklen_t*)&nAddrLen);
 			#endif // _WIN32
 
 			if (INVALID_SOCKET == cSock)
@@ -146,7 +142,8 @@ public:
 			}
 			else
 			{
-				printf("新客户端加入 Socket: %d ; IP: %s\n", cSock, (inet_ntoa)(clientAddr.sin_addr));
+				iMaxClient += 1;
+				printf("<%d>新客户端加入 Socket: %d ; IP: %s\n",iMaxClient, cSock, (inet_ntoa)(clientAddr.sin_addr));
 				FD_SET(cSock, &m_FdMain);//加入套节字到集合,这里是一个读数据的套节字
 			}
 		}
@@ -156,6 +153,11 @@ public:
 	//处理客户端消息
 	bool OnRun()
 	{
+		bool bRet = Accept();
+		if (!bRet)
+		{
+			return false;
+		}
 		for (u_int i = 0; i < m_FdRead.fd_count; i++)
 		{
 			if (false == RecvData(m_FdRead.fd_array[i])) //失败则清理cSock
@@ -183,24 +185,37 @@ public:
 		memcpy(m_MsgBuf + m_LastPos, m_ArrayRecv, nLen);
 		//消息缓冲区数据尾部位置后移
 		m_LastPos += nLen;
+		if (m_LastPos > (RECV_BUFF_SIZE * 2))
+		{
+			printf("数据缓冲区溢出，程序崩溃!!!\n");
+			getchar();
+			return false;
+		}
 		//printf("%d\n", m_LastPos);
 		int iHandle = 0;
 		while (m_LastPos >= sizeof(DataHeader))
 		{
 			DataHeader* header = (DataHeader*)m_MsgBuf;
-			if (m_LastPos >= header->dataLength)
+			int iLen = header->dataLength;
+			if (m_LastPos >= iLen)
 			{
-				//printf("收到 <Socket = %d> 命令：%d 数据长度：%d\n", cSock, header->cmd, header->dataLength);
+				printf("收到 <Socket = %d> 命令：%d 数据长度：%d\n", cSock, header->cmd, iLen);
+				if (header->cmd < 0)
+				{
+					printf("%d / %d", m_LastPos, RECV_BUFF_SIZE * 2);
+					system("pause");
+				}
 				OnNetMsg(cSock, header);
 				//剩余未处理消息缓冲区数据长度
-				m_LastPos -= header->dataLength;
+				m_LastPos -= iLen;
 				if (m_LastPos > 0)
 				{
-					memcpy(m_MsgBuf, m_MsgBuf + header->dataLength, m_LastPos);
+					memcpy(m_MsgBuf, m_MsgBuf + iLen, m_LastPos);
 				}
 				iHandle += 1;
 				if (0 != RECV_HANDLE_SIZE and iHandle >= RECV_HANDLE_SIZE)
 				{
+					printf("break\n");
 					break;
 				}
 			}
@@ -214,13 +229,13 @@ public:
 	}
 
 	//6. 处理请求并发送给客户端
-	virtual void OnNetMsg(SOCKET cSock, DataHeader* header)
+	virtual void OnNetMsg(SOCKET cSock,const DataHeader* header)
 	{
 		m_RecvCount++;
 		double t1 = m_tTime.GetElapsedSecond();
 		if (t1 >= 1.0)
 		{
-			printf("Scoket: %d, recvCount: %d, time: %lf\n", cSock, m_RecvCount, t1);
+			//printf("Scoket: %d, recvCount: %d, time: %lf\n", cSock, m_RecvCount, t1);
 			m_RecvCount = 0;
 			m_tTime.Update();
 		}
@@ -279,13 +294,32 @@ public:
 		close(_sock);
 		#endif // _WIN32
 	}
+private:
+	//高精度计时器
+	CTimestamp m_tTime;
+	int m_RecvCount = 0;
+
+	SOCKET m_Sock;
+	fd_set m_FdMain;		//创建一个用来装socket的结构体
+	fd_set m_FdRead = m_FdMain;
+
+	//消息接收暂存区 动态数组
+	char m_ArrayRecv[RECV_BUFF_SIZE] = {};
+	//消息缓冲区 动态数组
+	char m_MsgBuf[RECV_BUFF_SIZE * 5] = {};
+	//记录上次接收数据位置
+	int m_LastPos = 0;
+
+	bool m_bRun = true;		//是否运行
+
 };
+
 
 int main()
 {
 	CNetServer server;
 	bool bRet = server.InitSocket();
-	if (false == server.Bind("127.0.0.1", 7777))
+	if (false == server.Bind("0.0.0.0", 7777))
 	{
 		return false;
 	}
@@ -299,10 +333,10 @@ int main()
 	}
 	while (server.IsRun())
 	{
-		server.Accept();
 		server.OnRun();
 		//printf("空闲处理其他业务！\n");
 	}
 	getchar();
 	return true;
 }
+

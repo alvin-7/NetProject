@@ -1,7 +1,5 @@
 #pragma once
-
 #include <chrono>
-
 using namespace std::chrono;
 
 class CTimestamp
@@ -20,6 +18,7 @@ public:
 	{
 		m_Begin = high_resolution_clock::now();
 	}
+
 
 	//获取当前秒
 	double GetElapsedSecond()

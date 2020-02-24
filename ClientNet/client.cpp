@@ -1,25 +1,23 @@
 #include <stdio.h>
 #include <thread>
+#include <mutex>
+#include <atomic>
+
 #include "defines.h"
 
 #pragma warning(disable:4996)
 
+using namespace std;
+
 
 class CNetClient
 {
-private:
-	SOCKET m_Sock;
-	fd_set m_FdMain;	//创建一个用来装socket的结构体
-	//消息接收暂存区 动态数组
-	char m_ArrayRecv[RECV_BUFF_SIZE] = {};
-	//消息缓冲区 动态数组
-	char m_MsgBuf[RECV_BUFF_SIZE * 2] = {};
-	//记录上次接收数据位置
-	int m_LastPos = 0;
 public:
 	CNetClient()
 	{
 		m_Sock = INVALID_SOCKET;
+		m_LastPos = 0;
+		memset(m_MsgBuf, 0, sizeof(m_MsgBuf));
 	}
 	virtual ~CNetClient()
 	{
@@ -44,11 +42,11 @@ public:
 		if (INVALID_SOCKET == m_Sock)
 		{
 			printf("Socket error!\n");
-			getchar();
+			//getchar();
 			Close();
 			return 0;
 		}
-		printf("Socket Success!\n");
+		//printf("Socket Success!\n");
 		return 1;
 	}
 	//连接到服务器
@@ -72,12 +70,12 @@ public:
 		if (SOCKET_ERROR == ret)
 		{
 			printf("Connect Error!\n");
-			getchar();
+			//getchar();
 			return 0;
 		}
 		FD_ZERO(&m_FdMain);//将你的套节字集合清空
 		FD_SET(m_Sock, &m_FdMain);//加入你感兴趣的套节字到集合,这里是一个读数据的套节字s
-		printf("Connect Server Success!\n");
+		//printf("Connect Server Success!\n");
 		return 1;
 	}
 	//关闭socket
@@ -104,10 +102,10 @@ public:
 			return false;
 		}
 		fd_set fdRead = m_FdMain;
-		fd_set fdWrite = m_FdMain;
-		fd_set fdExp = m_FdMain;
+		//fd_set fdWrite = m_FdMain;
+		//fd_set fdExp = m_FdMain;
 		timeval st = { 1, 0 };
-		int ret = select(m_Sock + 1, &fdRead, 0, 0, &st);
+		int ret = select(0, &fdRead, 0, 0, &st);
 		if (ret < 0)
 		{
 			printf("select程序结束\n");
@@ -207,12 +205,25 @@ public:
 
 	int SendData(DataHeader * header)
 	{
-		if (!(IsRun() && header))
+		if (IsRun() && header)
 		{
-			return SOCKET_ERROR;
+			int iRet = send(m_Sock, (const char*)header, header->dataLength, 0);
+			if (SOCKET_ERROR == iRet)
+			{
+				Close();
+			}
 		}
-		return send(m_Sock, (char*)header, header->dataLength, 0);
+		return SOCKET_ERROR;
 	}
+private:
+	SOCKET m_Sock;
+	fd_set m_FdMain;	//创建一个用来装socket的结构体
+	//消息接收暂存区 动态数组
+	char m_ArrayRecv[RECV_BUFF_SIZE] = {};
+	//消息缓冲区 动态数组
+	char m_MsgBuf[RECV_BUFF_SIZE * 5] = {};
+	//记录上次接收数据位置
+	int m_LastPos = 0;
 };
 
 //输入线程
@@ -255,9 +266,97 @@ void CmdThread(CNetClient * client)
 
 bool Test();
 
+//测试客户端数量
+const int iCount = 1000;
+CNetClient* clientsLst[iCount];
+mutex m;
+
+//当前4个线程，tid为1-4
+bool SendThread(const int tCount, const int tid)
+{
+	int iRange = iCount / tCount;
+	int iBegin = (tid - 1) * iRange;
+	int iEnd = tid * iRange;
+	printf("iBegin = %d;\tiEND = %d\n", iBegin, iEnd);
+
+	if (tid == tCount)
+	{
+		iEnd += iCount % tCount;
+	}
+	for (int i = iBegin; i < iEnd; i++)
+	{
+		if (!g_bRun)
+		{
+			return false;
+		}
+		clientsLst[i] = new CNetClient();
+		clientsLst[i]->InitSocket();
+	}
+	for (int i = iBegin; i < iEnd; i++)
+	{
+		if (!g_bRun)
+		{
+			return false;
+		}
+		clientsLst[i]->Connect("127.0.0.1", 7777);
+		//printf("Connect<%d> Suceess!\n", i);
+	}
+
+	Login login;
+	strcpy(login.uName, "zhuye");
+	strcpy(login.uPassword, "mima");
+	while (g_bRun)
+	{
+		int isDisconnect = 0;
+		for (int i = iBegin; i < iEnd; i++)
+		{
+			lock_guard<mutex> lg(m);
+			clientsLst[i]->SendData(&login);
+			Sleep(0.001);
+			/*if(!clientsLst[i]->OnRun())
+			{
+				isDisconnect += 1;
+				if (isDisconnect >= iCount)
+				{
+					printf("GameOver!\n");
+					getchar();
+					return false;
+				}
+			}
+			else
+			{
+				printf("Sending...\n");
+				clientsLst[i]->SendData(&login);
+			}*/
+		}
+	}
+	for (int i = iBegin; i < iEnd; i++)
+	{
+		clientsLst[i]->Close();
+		delete clientsLst[i];
+	}
+	return true;
+}
+
+bool Test();
+
 int main() 
 {
-	return Test();
+	//线程数
+	const int tCount = 4;
+	for (int i = 1; i <= tCount; i++)
+	{
+		thread t1(SendThread, tCount, i);
+		t1.detach();
+	}
+	while (true)
+	{
+		//Sleep(100);
+	}
+	return 0;
+
+	//return Test();
+
 	//CNetClient client;
 	//client.InitSocket();
 	//bool ret = client.Connect("127.0.0.1", 7777);
@@ -280,6 +379,7 @@ int main()
 	//return true;
 }
 
+
 bool Test()
 {
 	const int iCount = 1000;
@@ -298,18 +398,19 @@ bool Test()
 		{
 			return 0;
 		}
-		clientsLst[i]->Connect("127.0.0.1", 7777);
+		clientsLst[i]->Connect("0.0.0.0", 7777);
 		printf("Connect<%d> Suceess!\n", i);
 	}
 
-	LoginResult loginResult;
-	loginResult.result = true;
+	Login login;
+	strcpy(login.uName, "zhuye");
+	strcpy(login.uPassword, "mima");
 	while (g_bRun)
 	{
 		int isDisconnect = 0;
 		for (int i = 0; i < iCount; i++)
 		{
-			clientsLst[i]->SendData(&loginResult);
+			clientsLst[i]->SendData(&login);
 			//Sleep(100);
 			/*if(!clientsLst[i]->OnRun())
 			{
