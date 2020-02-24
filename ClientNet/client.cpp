@@ -203,10 +203,14 @@ public:
 		}
 	}
 
-	int SendData(DataHeader * header)
+	int SendData(const DataHeader * header)
 	{
 		if (IsRun() && header)
 		{
+			if (header->cmd != 1 || header->dataLength != 68)
+			{
+				printf("<cmd£º%d   len£º%d>\n", header->cmd, header->dataLength);
+			}
 			int iRet = send(m_Sock, (const char*)header, header->dataLength, 0);
 			if (SOCKET_ERROR == iRet)
 			{
@@ -312,7 +316,7 @@ bool SendThread(const int tCount, const int tid)
 		{
 			lock_guard<mutex> lg(m);
 			clientsLst[i]->SendData(&login);
-			Sleep(0.001);
+			//Sleep(0.001);
 			/*if(!clientsLst[i]->OnRun())
 			{
 				isDisconnect += 1;
@@ -343,19 +347,19 @@ bool Test();
 int main() 
 {
 	//Ïß³ÌÊý
-	const int tCount = 4;
-	for (int i = 1; i <= tCount; i++)
-	{
-		thread t1(SendThread, tCount, i);
-		t1.detach();
-	}
-	while (true)
-	{
-		//Sleep(100);
-	}
-	return 0;
+	//const int tCount = 4;
+	//for (int i = 1; i <= tCount; i++)
+	//{
+	//	thread t1(SendThread, tCount, i);
+	//	t1.detach();
+	//}
+	//while (true)
+	//{
+	//	//Sleep(100);
+	//}
+	//return 0;
 
-	//return Test();
+	return Test();
 
 	//CNetClient client;
 	//client.InitSocket();
@@ -382,7 +386,7 @@ int main()
 
 bool Test()
 {
-	const int iCount = 1000;
+	const int iCount = 100;
 	CNetClient* clientsLst[iCount];
 	for (int i = 0; i < iCount; i++)
 	{
@@ -398,7 +402,7 @@ bool Test()
 		{
 			return 0;
 		}
-		clientsLst[i]->Connect("0.0.0.0", 7777);
+		clientsLst[i]->Connect("127.0.0.1", 7777);
 		printf("Connect<%d> Suceess!\n", i);
 	}
 

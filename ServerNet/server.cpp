@@ -1,25 +1,265 @@
 #include <stdio.h>
 #include <vector>
+#include <thread>
+#include <mutex>
+#include <atomic>
+
 #include "defines.h"
 #include "timestamp.hpp"
 
-using namespace std;
 
 int iMaxClient = 0;
 
-class CBaseServer
+class CWorkServer
 {
 public:
-	CBaseServer()
+	CWorkServer(SOCKET sock = INVALID_SOCKET)
 	{
-
+		m_Sock = sock;
+		m_pThread = nullptr;
+		m_RecvCount = 0;
 	}
-	~CBaseServer()
+	~CWorkServer()
 	{
+		Close();
+		m_Sock = INVALID_SOCKET;
+	}
 
+	//连接客户端，并加入fdRead
+	bool Accept()
+	{
+		timeval st = { 1, 0 };	//select 超时参数
+		//nfds 是一个整数值，是指fd_set集合中所有描述符（socket）的范围，而不是数量
+		//即是所有文件描述符最大值+1（Windows平台下已处理，可写0）
+		//第一个参数不管,是兼容目的,最后的是超时标准,select是阻塞操作
+		//当然要设置超时事件.
+		//接着的三个类型为fd_set的参数分别是用于检查套节字的可读性, 可写性, 和列外数据性质.
+		int ret = select(0, &m_FdRead, 0, 0, &st);
+		//负值：select错误
+		if (ret < 0)
+		{
+			printf("select失败，任务结束\n");
+			m_bRun = false;
+			return false;
+		}
+		//等待超时，没有可读写或错误的文件
+		else if (0 == ret)
+		{
+			return true;
+		}
+		if (FD_ISSET(m_Sock, &m_FdRead)) //判断文件描述符fdRead是否在集合_sock中
+		{
+			FD_CLR(m_Sock, &m_FdRead);
+			//4. accept 等待接受客户端连接
+			sockaddr_in clientAddr = {};
+			int nAddrLen = sizeof(sockaddr_in);
+			SOCKET cSock = INVALID_SOCKET;
+
+#ifdef _WIN32
+			cSock = accept(m_Sock, (sockaddr*)&clientAddr, &nAddrLen);
+#else
+			cSock = accept(m_Sock, (sockaddr*)&clientAddr, (socklen_t*)&nAddrLen);
+#endif // _WIN32
+
+			if (INVALID_SOCKET == cSock)
+			{
+				printf("Accept Error!\n");
+			}
+			else
+			{
+				iMaxClient += 1;
+				printf("<%d>新客户端加入 Socket: %d ; IP: %s\n", iMaxClient, cSock, (inet_ntoa)(clientAddr.sin_addr));
+				AddClient(cSock);
+			}
+		}
+		return true;
+	}
+
+	void Start()
+	{
+		m_pThread = new std::thread(std::mem_fun(&CWorkServer::OnRun), this);
+	}
+
+	//处理客户端消息
+	bool OnRun()
+	{
+		while(IsRun())
+		{
+			m_FdRead = m_FdMain;
+			for (u_int i = 0; i < m_FdRead.fd_count; i++)
+			{
+				if (m_FdRead.fd_array[i] == m_Sock)
+				{
+					Accept();
+				}
+				else if (false == RecvData(m_FdRead.fd_array[i])) //失败则清理cSock
+				{
+					SOCKET socketTemp = m_FdRead.fd_array[i];
+					FD_CLR(socketTemp, &m_FdMain);
+					//释放
+					closesocket(socketTemp);
+				}
+			}
+		}
+		return true;
+	}
+
+	//接收数据
+	bool RecvData(SOCKET cSock)
+	{
+		//5. 接受客户端数据
+		int nLen = recv(cSock, m_ArrayRecv, RECV_BUFF_SIZE, 0);
+		if (nLen <= 0)
+		{
+			printf("<Socket=%d>客户端已退出，任务结束\n", cSock);
+			return false;
+		}
+		char oldBuf[RECV_BUFF_SIZE * 5];
+		memcpy(oldBuf, m_MsgBuf, m_LastPos);
+		//将接收到的数据拷贝到消息缓冲区末尾
+		memcpy(m_MsgBuf + m_LastPos, m_ArrayRecv, nLen);
+		//消息缓冲区数据尾部位置后移
+		m_LastPos += nLen;
+		if (m_LastPos > (RECV_BUFF_SIZE * 5))
+		{
+			printf("数据缓冲区溢出，程序崩溃!!!\n");
+			getchar();
+			return false;
+		}
+		//printf("%d\n", m_LastPos);
+		int iHandle = 0;
+		int iDhLen = sizeof(DataHeader);
+		while (m_LastPos >= iDhLen)
+		{
+			DataHeader* header = (DataHeader*)m_MsgBuf;
+			int iLen = header->dataLength;
+			if (m_LastPos >= iLen)
+			{
+				printf("收到 <Socket = %d> 命令：%d 数据长度：%d\n", cSock, header->cmd, iLen);
+				if (header->cmd != 1)
+				{
+					printf("%s\n", oldBuf);
+					printf("%s\n", m_MsgBuf);
+					system("pause");
+				}
+				OnNetMsg(cSock, header);
+				//剩余未处理消息缓冲区数据长度
+				m_LastPos -= iLen;
+				if (m_LastPos > 0)
+				{
+					memcpy(m_MsgBuf, m_MsgBuf + iLen, m_LastPos);
+				}
+				iHandle += 1;
+				if (0 != RECV_HANDLE_SIZE and iHandle >= RECV_HANDLE_SIZE)
+				{
+					printf("break\n");
+					break;
+				}
+			}
+			else
+			{
+				//消息缓冲区不足一条完整消息
+				break;
+			}
+		}
+		return true;
+	}
+
+
+	//6. 处理请求并发送给客户端
+	virtual void OnNetMsg(SOCKET cSock, const DataHeader* header)
+	{
+		m_RecvCount++;
+		//double t1 = m_tTime.GetElapsedSecond();
+		//if (t1 >= 1.0)
+		//{
+		//	//printf("Scoket: %d, recvCount: %d, time: %lf\n", cSock, m_RecvCount, t1);
+		//	m_RecvCount = 0;
+		//	m_tTime.Update();
+		//}
+		//printf("OnNetMsg Client<cSock=%d>...\n", cSock);
+		DataHeader data;
+		switch (header->cmd)
+		{
+		case CMD_LOGIN:
+		{
+			Login* login = (Login*)header;
+			printf("CMD_LOGIN name: %s ; password: %s\n", login->uName, login->uPassword);
+			LoginResult ret;
+			ret.result = true;
+			data = (DataHeader)ret;
+		}
+		break;
+		case CMD_LOGINOUT:
+		{
+			Loginout* loginout = (Loginout*)header;
+			//printf("CMD_LOGIN name: %s\n", loginout->uName);
+			LoginoutResult ret;
+			ret.result = true;
+			data = (DataHeader)ret;
+		}
+		break;
+		default:
+		{
+			DataHeader header = {};
+			header.cmd = CMD_ERROR;
+			data = header;
+		}
+		break;
+		}
+		//SendData(cSock, &data);
+	}
+
+	void AddClient(SOCKET cSock)
+	{
+		std::lock_guard<std::mutex> lockmy(m_Mutex);
+		FD_SET(cSock, &m_FdMain);//加入套节字到集合,这里是一个读数据的套节字
+	}
+
+	//获取fdset中客户端数量
+	int GetClientCount()
+	{
+		return m_FdMain.fd_count;
+	}
+
+	bool IsRun()
+	{
+		return m_bRun;
+	}
+
+	void Close()
+	{
+#ifdef _WIN32
+		//7. 关闭套接字
+		closesocket(m_Sock);
+		//清除Windows socket环境
+		WSACleanup();
+#else
+		close(_sock);
+#endif // _WIN32
 	}
 
 private:
+	SOCKET m_Sock;
+	//总Socket队列
+	fd_set m_FdMain;		//创建一个用来装socket的结构体
+	//临时Socket队列
+	fd_set m_FdRead = m_FdMain;
+
+	std::mutex m_Mutex;
+	std::thread* m_pThread;
+
+	//消息接收暂存区 动态数组
+	char m_ArrayRecv[RECV_BUFF_SIZE] = {};
+	//消息缓冲区 动态数组
+	char m_MsgBuf[RECV_BUFF_SIZE * 5] = {};
+	//记录上次接收数据位置
+	int m_LastPos = 0;
+
+	bool m_bRun = true;
+
+public:
+	std::atomic_int m_RecvCount;
 
 };
 
@@ -99,6 +339,16 @@ public:
 		return true;
 	}
 
+	void Start()
+	{
+		for (int i = 0; i < _WORKSERVER_NUM_; i++)
+		{
+			auto ser = new CWorkServer(m_Sock);
+			ser->Start();
+			m_WorkServerLst.push_back(ser);
+		}
+	}
+
 	//连接客户端，并加入fdRead
 	bool Accept()
 	{
@@ -144,139 +394,70 @@ public:
 			{
 				iMaxClient += 1;
 				printf("<%d>新客户端加入 Socket: %d ; IP: %s\n",iMaxClient, cSock, (inet_ntoa)(clientAddr.sin_addr));
-				FD_SET(cSock, &m_FdMain);//加入套节字到集合,这里是一个读数据的套节字
+				AddClient2WorkServer(cSock);
 			}
 		}
 		return true;
+	}
+
+	void AddClient2WorkServer(SOCKET cSock)
+	{
+		FD_SET(cSock, &m_FdMain);//加入套节字到集合,这里是一个读数据的套节字
+		auto pMinServer = m_WorkServerLst[0];
+		for (auto pWorkServer : m_WorkServerLst)
+		{
+			if (pMinServer->GetClientCount() < pWorkServer->GetClientCount())
+			{
+				pMinServer = pWorkServer;
+			}
+		}
+		pMinServer->AddClient(cSock);
 	}
 
 	//处理客户端消息
 	bool OnRun()
 	{
+		Time4Msg();
 		bool bRet = Accept();
 		if (!bRet)
 		{
 			return false;
 		}
-		for (u_int i = 0; i < m_FdRead.fd_count; i++)
-		{
-			if (false == RecvData(m_FdRead.fd_array[i])) //失败则清理cSock
-			{
-				SOCKET socketTemp = m_FdRead.fd_array[i];
-				FD_CLR(socketTemp, &m_FdMain);
-				//释放
-				closesocket(socketTemp);
-			}
-		}
-		return true;
-	}
-
-	//接收数据
-	bool RecvData(SOCKET cSock)
-	{
-		//5. 接受客户端数据
-		int nLen = recv(cSock, m_ArrayRecv, RECV_BUFF_SIZE, 0);
-		if (nLen <= 0)
-		{
-			printf("<Socket=%d>客户端已退出，任务结束\n", cSock);
-			return false;
-		}
-		//将接收到的数据拷贝到消息缓冲区
-		memcpy(m_MsgBuf + m_LastPos, m_ArrayRecv, nLen);
-		//消息缓冲区数据尾部位置后移
-		m_LastPos += nLen;
-		if (m_LastPos > (RECV_BUFF_SIZE * 2))
-		{
-			printf("数据缓冲区溢出，程序崩溃!!!\n");
-			getchar();
-			return false;
-		}
-		//printf("%d\n", m_LastPos);
-		int iHandle = 0;
-		while (m_LastPos >= sizeof(DataHeader))
-		{
-			DataHeader* header = (DataHeader*)m_MsgBuf;
-			int iLen = header->dataLength;
-			if (m_LastPos >= iLen)
-			{
-				printf("收到 <Socket = %d> 命令：%d 数据长度：%d\n", cSock, header->cmd, iLen);
-				if (header->cmd < 0)
-				{
-					printf("%d / %d", m_LastPos, RECV_BUFF_SIZE * 2);
-					system("pause");
-				}
-				OnNetMsg(cSock, header);
-				//剩余未处理消息缓冲区数据长度
-				m_LastPos -= iLen;
-				if (m_LastPos > 0)
-				{
-					memcpy(m_MsgBuf, m_MsgBuf + iLen, m_LastPos);
-				}
-				iHandle += 1;
-				if (0 != RECV_HANDLE_SIZE and iHandle >= RECV_HANDLE_SIZE)
-				{
-					printf("break\n");
-					break;
-				}
-			}
-			else
-			{
-				//消息缓冲区不足一条完整消息
-				break;
-			}
-		}
+		//for (u_int i = 0; i < m_FdRead.fd_count; i++)
+		//{
+		//	if (false == RecvData(m_FdRead.fd_array[i])) //失败则清理cSock
+		//	{
+		//		SOCKET socketTemp = m_FdRead.fd_array[i];
+		//		FD_CLR(socketTemp, &m_FdMain);
+		//		//释放
+		//		closesocket(socketTemp);
+		//	}
+		//}
 		return true;
 	}
 
 	//6. 处理请求并发送给客户端
-	virtual void OnNetMsg(SOCKET cSock,const DataHeader* header)
+	void Time4Msg()
 	{
-		m_RecvCount++;
 		double t1 = m_tTime.GetElapsedSecond();
 		if (t1 >= 1.0)
 		{
-			//printf("Scoket: %d, recvCount: %d, time: %lf\n", cSock, m_RecvCount, t1);
-			m_RecvCount = 0;
+			int recvCount = 0;
+			for (auto ser : m_WorkServerLst)
+			{
+				recvCount += ser->m_RecvCount;
+				ser->m_RecvCount = 0;
+			}
+			//printf("recvCount: %d, time: %lf\n", recvCount, t1);
 			m_tTime.Update();
 		}
-		//printf("OnNetMsg Client<cSock=%d>...\n", cSock);
-		DataHeader data;
-		switch (header->cmd)
-		{
-		case CMD_LOGIN:
-		{
-			Login* login = (Login*) header;
-			//printf("CMD_LOGIN name: %s ; password: %s\n", login->uName, login->uPassword);
-			LoginResult ret;
-			ret.result = true;
-			data = (DataHeader)ret;
-		}
-		break;
-		case CMD_LOGINOUT:
-		{
-			Loginout* loginout = (Loginout*)header;
-			//printf("CMD_LOGIN name: %s\n", loginout->uName);
-			LoginoutResult ret;
-			ret.result = true;
-			data = (DataHeader)ret;
-		}
-		break;
-		default:
-		{
-			DataHeader header = {};
-			header.cmd = CMD_ERROR;
-			data = header;
-		}
-		break;
-		}
-		SendData(cSock, &data);
+
 	}
 
 	void SendData(SOCKET cSock, DataHeader * header)
 	{
 		send(cSock, (char*)header, header->dataLength, 0);
 	}
-
 
 	bool IsRun()
 	{
@@ -294,6 +475,7 @@ public:
 		close(_sock);
 		#endif // _WIN32
 	}
+
 private:
 	//高精度计时器
 	CTimestamp m_tTime;
@@ -302,6 +484,8 @@ private:
 	SOCKET m_Sock;
 	fd_set m_FdMain;		//创建一个用来装socket的结构体
 	fd_set m_FdRead = m_FdMain;
+
+	std::vector<CWorkServer*> m_WorkServerLst;
 
 	//消息接收暂存区 动态数组
 	char m_ArrayRecv[RECV_BUFF_SIZE] = {};
@@ -319,6 +503,10 @@ int main()
 {
 	CNetServer server;
 	bool bRet = server.InitSocket();
+	if (!bRet)
+	{
+		return false;
+	}
 	if (false == server.Bind("0.0.0.0", 7777))
 	{
 		return false;
@@ -327,10 +515,8 @@ int main()
 	{
 		return false;
 	}
-	if (!bRet)
-	{
-		return false;
-	}
+	server.Start();
+
 	while (server.IsRun())
 	{
 		server.OnRun();

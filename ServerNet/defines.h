@@ -6,6 +6,7 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <windows.h>
 #include <WinSock2.h>
+#include <functional>
 #pragma comment(lib, "ws2_32.lib")
 #else
 #include <unistd.h>
@@ -26,6 +27,8 @@
 #ifndef RECV_HANDLE_SIZE
 #define RECV_HANDLE_SIZE 0
 #endif // !RECV_HANDLE_SIZE
+
+#define _WORKSERVER_NUM_ 4
 
 enum CMD
 {
