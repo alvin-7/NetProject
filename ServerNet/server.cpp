@@ -179,7 +179,6 @@ public:
 			getchar();
 			return false;
 		}
-		//printf("%d\n", iLastPos_);
 
 		int iHandle = 0;
 		int iDhLen = sizeof(DataHeader);
@@ -194,7 +193,7 @@ public:
 				{
 					system("pause");
 				}
-				OnNetMsg(cSock, header);
+				OnNetMsg(clients_[cSock], header);
 				//剩余未处理消息缓冲区数据长度
 				clients_[cSock]->setLastPos(clients_[cSock]->getLastPos() - iLen);
 				memcpy(clients_[cSock]->getMsgBuf(), clients_[cSock]->getMsgBuf() + iLen, clients_[cSock]->getLastPos());
@@ -217,7 +216,7 @@ public:
 
 
 	//6. 处理请求并发送给客户端
-	virtual void OnNetMsg(SOCKET cSock, const DataHeader* header)
+	virtual void OnNetMsg(ClientSocket* client, const DataHeader* header)
 	{
 		recvCount_++;
 		//double t1 = m_tTime.GetElapsedSecond();
@@ -257,7 +256,7 @@ public:
 		}
 		break;
 		}
-		//SendData(cSock, &data);
+		client->SendData(&data);
 	}
 
 	void AddClient(SOCKET cSock)

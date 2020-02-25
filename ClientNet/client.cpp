@@ -15,9 +15,9 @@ class CNetClient
 public:
 	CNetClient()
 	{
-		m_Sock = INVALID_SOCKET;
-		m_LastPos = 0;
-		memset(m_MsgBuf, 0, sizeof(m_MsgBuf));
+		sock_ = INVALID_SOCKET;
+		lastPos_ = 0;
+		memset(msgBuf_, 0, sizeof(msgBuf_));
 	}
 	virtual ~CNetClient()
 	{
@@ -32,14 +32,14 @@ public:
 		//启动Windows socket环境
 		WSAStartup(ver, &dat);
 		#endif // _WIN32
-		if (INVALID_SOCKET != m_Sock)
+		if (INVALID_SOCKET != sock_)
 		{
-			printf("关闭旧连接<socket = %d>！\n", m_Sock);
+			printf("关闭旧连接<socket = %d>！\n", sock_);
 			Close();
 		}
 		//1. 建立套接字socket
-		m_Sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-		if (INVALID_SOCKET == m_Sock)
+		sock_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		if (INVALID_SOCKET == sock_)
 		{
 			printf("Socket error!\n");
 			//getchar();
@@ -52,7 +52,7 @@ public:
 	//连接到服务器
 	bool Connect(const char* ip, unsigned short port)
 	{
-		if (INVALID_SOCKET == m_Sock)
+		if (INVALID_SOCKET == sock_)
 		{
 			InitSocket();
 		}
@@ -66,30 +66,30 @@ public:
 		_sin.sin_addr.s_addr = inet_addr(ip);
 		#endif // _WIN32
 
-		int ret = connect(m_Sock, (sockaddr*)&_sin, sizeof(sockaddr_in));
+		int ret = connect(sock_, (sockaddr*)&_sin, sizeof(sockaddr_in));
 		if (SOCKET_ERROR == ret)
 		{
 			printf("Connect Error!\n");
 			//getchar();
 			return 0;
 		}
-		FD_ZERO(&m_FdMain);//将你的套节字集合清空
-		FD_SET(m_Sock, &m_FdMain);//加入你感兴趣的套节字到集合,这里是一个读数据的套节字s
+		FD_ZERO(&fdMain_);//将你的套节字集合清空
+		FD_SET(sock_, &fdMain_);//加入你感兴趣的套节字到集合,这里是一个读数据的套节字s
 		//printf("Connect Server Success!\n");
 		return 1;
 	}
 	//关闭socket
 	void Close()
 	{
-		FD_ZERO(&m_FdMain);//将你的套节字集合清空
+		FD_ZERO(&fdMain_);//将你的套节字集合清空
 
 		#ifdef _WIN32
 		//7. 关闭套接字
-		closesocket(m_Sock);
+		closesocket(sock_);
 		//清除Windows socket环境
 		WSACleanup();
 		#else
-		close(m_Sock);
+		close(sock_);
 		#endif // _WIN32
 
 		getchar();
@@ -101,9 +101,9 @@ public:
 		{
 			return false;
 		}
-		fd_set fdRead = m_FdMain;
-		//fd_set fdWrite = m_FdMain;
-		//fd_set fdExp = m_FdMain;
+		fd_set fdRead = fdMain_;
+		//fd_set fdWrite = fdMain_;
+		//fd_set fdExp = fdMain_;
 		timeval st = { 1, 0 };
 		int ret = select(0, &fdRead, 0, 0, &st);
 		if (ret < 0)
@@ -115,10 +115,10 @@ public:
 		{
 			//printf("空闲处理其他业务！\n");
 		}
-		if (FD_ISSET(m_Sock, &fdRead))
+		if (FD_ISSET(sock_, &fdRead))
 		{
-			FD_CLR(m_Sock, &fdRead);
-			if (0 == RecvData(m_Sock))
+			FD_CLR(sock_, &fdRead);
+			if (0 == RecvData())
 			{
 				printf("select任务结束！\n");
 				return false;
@@ -130,37 +130,34 @@ public:
 	//判断当前sock是否正常
 	bool IsRun()
 	{
-		return INVALID_SOCKET != m_Sock && g_bRun;
+		return INVALID_SOCKET != sock_ && g_bRun;
 	}
 
 	//接受数据
-	bool RecvData(SOCKET sock)
+	bool RecvData()
 	{	
 		//5. 接受客户端数据
-		int nLen = recv(sock, m_ArrayRecv, RECV_BUFF_SIZE, 0);
+		int nLen = recv(sock_, arrayRecv_, RECV_BUFF_SIZE, 0);
 		if (nLen <= 0)
 		{
-			printf("<Socket=%d>与服务器断开连接，任务结束\n", sock);
+			printf("<Socket=%d>与服务器断开连接，任务结束\n", sock_);
 			return false;
 		}
 		//将接收到的数据拷贝到消息缓冲区
-		memcpy(m_MsgBuf + m_LastPos, m_ArrayRecv, nLen);
+		memcpy(msgBuf_ + lastPos_, arrayRecv_, nLen);
 		//消息缓冲区数据尾部位置后移
-		m_LastPos += nLen;
+		lastPos_ += nLen;
 		int iHandle = 0;
-		while (m_LastPos >= sizeof(DataHeader))
+		while (lastPos_ >= sizeof(DataHeader))
 		{
-			DataHeader* header = (DataHeader*)m_MsgBuf;
-			if (m_LastPos >= header->dataLength)
+			DataHeader* header = (DataHeader*)msgBuf_;
+			if (lastPos_ >= header->dataLength)
 			{
-				printf("收到<Socket = %d> 命令：%d 数据长度：%d\n", sock, header->cmd, header->dataLength);
+				printf("收到<Socket = %d> 命令：%d 数据长度：%d\n", sock_, header->cmd, header->dataLength);
 				OnNetMsg(header);
 				//剩余未处理消息缓冲区数据长度
-				m_LastPos -= header->dataLength;
-				if(m_LastPos > 0)
-				{
-				memcpy(m_MsgBuf, m_MsgBuf + header->dataLength, m_LastPos);
-				}
+				lastPos_ -= header->dataLength;
+				memcpy(msgBuf_, msgBuf_ + header->dataLength, lastPos_);
 				iHandle += 1;
 				if (0 != RECV_HANDLE_SIZE and iHandle >= RECV_HANDLE_SIZE)
 				{
@@ -211,10 +208,7 @@ public:
 			{
 				printf("<cmd：%d   len：%d>\n", header->cmd, header->dataLength);
 			}
-			int iRet = send(m_Sock, (const char*)header, (int)header->dataLength, 0);
-			//printf(" header->dataLength %d\n", header->dataLength);
-			/*char a[10] = "aaaaa";
-			int iRet = send(m_Sock, a, sizeof(a), 0);*/
+			int iRet = send(sock_, (const char*)header, (int)header->dataLength, 0);
 			if (SOCKET_ERROR == iRet)
 			{
 				Close();
@@ -223,14 +217,14 @@ public:
 		return SOCKET_ERROR;
 	}
 private:
-	SOCKET m_Sock;
-	fd_set m_FdMain;	//创建一个用来装socket的结构体
+	SOCKET sock_;
+	fd_set fdMain_;	//创建一个用来装socket的结构体
 	//消息接收暂存区 动态数组
-	char m_ArrayRecv[RECV_BUFF_SIZE] = {};
+	char arrayRecv_[RECV_BUFF_SIZE] = {};
 	//消息缓冲区 动态数组
-	char m_MsgBuf[RECV_BUFF_SIZE * 5] = {};
+	char msgBuf_[RECV_BUFF_SIZE * 5] = {};
 	//记录上次接收数据位置
-	int m_LastPos = 0;
+	int lastPos_ = 0;
 };
 
 //输入线程
@@ -319,6 +313,9 @@ bool SendThread(const int tid)
 		{
 			lock_guard<mutex> lg(m);
 			clientsLst[i]->SendData(&login);
+			clientsLst[i]->RecvData();
+		}
+		//clientsLst[i]->OnRun();
 			/*if(!clientsLst[i]->OnRun())
 			{
 				isDisconnect += 1;
