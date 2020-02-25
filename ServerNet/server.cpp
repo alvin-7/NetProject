@@ -76,58 +76,10 @@ public:
 		sock_ = INVALID_SOCKET;
 	}
 
-	//连接客户端，并加入fdRead
-	bool Accept()
-	{
-		timeval st = { 1, 0 };	//select 超时参数
-		//nfds 是一个整数值，是指fd_set集合中所有描述符（socket）的范围，而不是数量
-		//即是所有文件描述符最大值+1（Windows平台下已处理，可写0）
-		//第一个参数不管,是兼容目的,最后的是超时标准,select是阻塞操作
-		//当然要设置超时事件.
-		//接着的三个类型为fd_set的参数分别是用于检查套节字的可读性, 可写性, 和列外数据性质.
-		int ret = select(0, &fdRead_, 0, 0, &st);
-		//负值：select错误
-		if (ret < 0)
-		{
-			printf("select失败，任务结束\n");
-			bRun_ = false;
-			return false;
-		}
-		//等待超时，没有可读写或错误的文件
-		else if (0 == ret)
-		{
-			return true;
-		}
-		if (FD_ISSET(sock_, &fdRead_)) //判断文件描述符fdRead是否在集合_sock中
-		{
-			FD_CLR(sock_, &fdRead_);
-			//4. accept 等待接受客户端连接
-			sockaddr_in clientAddr = {};
-			int nAddrLen = sizeof(sockaddr_in);
-			SOCKET cSock = INVALID_SOCKET;
-
-#ifdef _WIN32
-			cSock = accept(sock_, (sockaddr*)&clientAddr, &nAddrLen);
-#else
-			cSock = accept(sock_, (sockaddr*)&clientAddr, (socklen_t*)&nAddrLen);
-#endif // _WIN32
-
-			if (INVALID_SOCKET == cSock)
-			{
-				printf("Accept Error!\n");
-			}
-			else
-			{
-				iMaxClient += 1;
-				printf("<%d>新客户端加入 Socket: %d ; IP: %s\n", iMaxClient, cSock, (inet_ntoa)(clientAddr.sin_addr));
-				AddClient(cSock);
-			}
-		}
-		return true;
-	}
-
 	void Start()
 	{
+		FD_ZERO(&fdMain_);//将你的套节字集合清空
+		FD_SET(sock_, &fdMain_);
 		pThread_ = new std::thread(std::mem_fun(&CWorkServer::OnRun), this);
 	}
 
@@ -161,7 +113,6 @@ public:
 	//接收数据
 	bool RecvData(SOCKET cSock)
 	{
-		//memset(arrayRecv_, 0, sizeof(arrayRecv_));
 		//5. 接受客户端数据
 		int nLen = (int)recv(cSock, arrayRecv_, RECV_BUFF_SIZE, 0);
 		if (nLen <= 0)
@@ -413,7 +364,7 @@ public:
 		//负值：select错误
 		if (ret < 0)
 		{
-			printf("select失败，任务结束\n");
+			printf("select -> Accept 失败，任务结束\n");
 			bRun_ = false;
 			return false;
 		}

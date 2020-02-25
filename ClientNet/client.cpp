@@ -268,7 +268,7 @@ void CmdThread(CNetClient * client)
 bool Test();
 
 //测试客户端数量
-const int iCount = 1000;
+const int iCount = 100;
 CNetClient* clientsLst[iCount];
 mutex m;
 
@@ -313,7 +313,7 @@ bool SendThread(const int tid)
 		{
 			lock_guard<mutex> lg(m);
 			clientsLst[i]->SendData(&login);
-			clientsLst[i]->RecvData();
+			//clientsLst[i]->OnRun();
 		}
 		//clientsLst[i]->OnRun();
 			/*if(!clientsLst[i]->OnRun())
@@ -331,7 +331,6 @@ bool SendThread(const int tid)
 				printf("Sending...\n");
 				clientsLst[i]->SendData(&login);
 			}*/
-		}
 	}
 	for (int i = iBegin; i < iEnd; i++)
 	{
