@@ -26,6 +26,8 @@
 #define RECV_HANDLE_SIZE 0
 #endif // !RECV_HANDLE_SIZE
 
+//客户端线程数
+#define _WORKCLIENT_NUM_ 4
 
 bool g_bRun = true;
 

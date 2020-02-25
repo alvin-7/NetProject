@@ -211,7 +211,10 @@ public:
 			{
 				printf("<cmd：%d   len：%d>\n", header->cmd, header->dataLength);
 			}
-			int iRet = send(m_Sock, (const char*)header, header->dataLength, 0);
+			int iRet = send(m_Sock, (const char*)header, (int)header->dataLength, 0);
+			//printf(" header->dataLength %d\n", header->dataLength);
+			/*char a[10] = "aaaaa";
+			int iRet = send(m_Sock, a, sizeof(a), 0);*/
 			if (SOCKET_ERROR == iRet)
 			{
 				Close();
@@ -276,16 +279,16 @@ CNetClient* clientsLst[iCount];
 mutex m;
 
 //当前4个线程，tid为1-4
-bool SendThread(const int tCount, const int tid)
+bool SendThread(const int tid)
 {
-	int iRange = iCount / tCount;
+	int iRange = iCount / _WORKCLIENT_NUM_;
 	int iBegin = (tid - 1) * iRange;
 	int iEnd = tid * iRange;
-	printf("iBegin = %d;\tiEND = %d\n", iBegin, iEnd);
+	//printf("iBegin = %d;\tiEND = %d\n", iBegin, iEnd);
 
-	if (tid == tCount)
+	if (tid == _WORKCLIENT_NUM_)
 	{
-		iEnd += iCount % tCount;
+		iEnd += iCount % _WORKCLIENT_NUM_;
 	}
 	for (int i = iBegin; i < iEnd; i++)
 	{
@@ -316,7 +319,6 @@ bool SendThread(const int tCount, const int tid)
 		{
 			lock_guard<mutex> lg(m);
 			clientsLst[i]->SendData(&login);
-			//Sleep(0.001);
 			/*if(!clientsLst[i]->OnRun())
 			{
 				isDisconnect += 1;
@@ -346,20 +348,18 @@ bool Test();
 
 int main() 
 {
-	//线程数
-	//const int tCount = 4;
-	//for (int i = 1; i <= tCount; i++)
-	//{
-	//	thread t1(SendThread, tCount, i);
-	//	t1.detach();
-	//}
-	//while (true)
-	//{
-	//	//Sleep(100);
-	//}
-	//return 0;
+	for (int i = 1; i <= _WORKCLIENT_NUM_; i++)
+	{
+		thread t1(SendThread, i);
+		t1.detach();
+	}
+	while (g_bRun)
+	{
+		Sleep(100);
+	}
+	return 0;
 
-	return Test();
+	//return Test();
 
 	//CNetClient client;
 	//client.InitSocket();
@@ -386,7 +386,7 @@ int main()
 
 bool Test()
 {
-	const int iCount = 100;
+	const int iCount = 1000;
 	CNetClient* clientsLst[iCount];
 	for (int i = 0; i < iCount; i++)
 	{
