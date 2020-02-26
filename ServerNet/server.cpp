@@ -9,7 +9,19 @@
 #include "timestamp.hpp"
 
 
-int iMaxClient = 0;
+class INetEvent
+{
+public:
+	INetEvent()
+	{}
+	~INetEvent()
+	{}
+	//客户端离开事件
+	virtual void OnLeave(SOCKET pClient) = 0;
+private:
+	 
+};
+
 
 //客户端数据类型
 class ClientSocket
@@ -69,11 +81,17 @@ public:
 		pThread_ = nullptr;
 		recvCount_ = 0;
 		bRun_ = true;
+		pNetEvent_ = nullptr;
 	}
 	~CWorkServer()
 	{
 		Close();
 		sock_ = INVALID_SOCKET;
+	}
+
+	void setEventObj(INetEvent* pEvent)
+	{
+		pNetEvent_ = pEvent;
 	}
 
 	void Start()
@@ -98,9 +116,10 @@ public:
 				}
 				if (false == RecvData(fdRead_.fd_array[i])) //失败则清理cSock
 				{
-					auto iter = clients_.find(fdRead_.fd_array[i]);
-					clients_.erase(iter->first);
-					SOCKET socketTemp = iter->second->getSockfd();
+					SOCKET socketTemp = fdRead_.fd_array[i];
+					if (pNetEvent_)
+						pNetEvent_->OnLeave(socketTemp);
+					clients_.erase(socketTemp);
 					FD_CLR(socketTemp, &fdMain_);
 					//释放
 					closesocket(socketTemp);
@@ -120,34 +139,38 @@ public:
 			printf("<Socket=%d>客户端已退出，任务结束\n", cSock);
 			return false;
 		}
+		ClientSocket* pClien = clients_[cSock];
 		//将接收到的数据拷贝到消息缓冲区末尾
-		memcpy(clients_[cSock]->getMsgBuf() + clients_[cSock]->getLastPos(), arrayRecv_, nLen);
+		memcpy(pClien->getMsgBuf() + pClien->getLastPos(), arrayRecv_, nLen);
 		//消息缓冲区数据尾部位置后移
-		clients_[cSock]->setLastPos(clients_[cSock]->getLastPos() + nLen);
-		if (clients_[cSock]->getLastPos() > (RECV_BUFF_SIZE * 5))
+		pClien->setLastPos(pClien->getLastPos() + nLen);
+		if (pClien->getLastPos() > (RECV_BUFF_SIZE * 5))
 		{
 			printf("数据缓冲区溢出，程序崩溃!!!\n");
 			getchar();
 			return false;
 		}
+		//printf("nLen: %d", nLen);
 
 		int iHandle = 0;
 		int iDhLen = sizeof(DataHeader);
-		while (clients_[cSock]->getLastPos() >= iDhLen)
+		while (pClien->getLastPos() >= iDhLen)
 		{
-			DataHeader* header = (DataHeader*)clients_[cSock]->getMsgBuf();
+			DataHeader* header = (DataHeader*)pClien->getMsgBuf();
+			//printf("HEADER CMD:%d ; LEN: %d\n", header->cmd, header->dataLength);
+
 			short iLen = header->dataLength;
-			if (clients_[cSock]->getLastPos() >= iLen)
+			if (pClien->getLastPos() >= iLen)
 			{
 				//printf("收到 <Socket = %d> 命令：%d 数据长度：%d\n", cSock, header->cmd, iLen);
 				if (header->cmd != 1)
 				{
 					system("pause");
 				}
-				OnNetMsg(clients_[cSock], header);
+				OnNetMsg(pClien, header);
 				//剩余未处理消息缓冲区数据长度
-				clients_[cSock]->setLastPos(clients_[cSock]->getLastPos() - iLen);
-				memcpy(clients_[cSock]->getMsgBuf(), clients_[cSock]->getMsgBuf() + iLen, clients_[cSock]->getLastPos());
+				pClien->setLastPos(pClien->getLastPos() - iLen);
+				memcpy(pClien->getMsgBuf(), pClien->getMsgBuf() + iLen, pClien->getLastPos());
 
 				iHandle += 1;
 				if (0 != RECV_HANDLE_SIZE and iHandle >= RECV_HANDLE_SIZE)
@@ -258,14 +281,14 @@ private:
 	bool bRun_;
 
 	std::map<SOCKET, ClientSocket*> clients_;
+	INetEvent* pNetEvent_;
 
 public:
 	std::atomic_int recvCount_;
 
 };
 
-
-class CNetServer
+class CNetServer : public INetEvent
 {
 public:
 	CNetServer()
@@ -345,8 +368,9 @@ public:
 		for (int i = 0; i < _WORKSERVER_NUM_; i++)
 		{
 			auto ser = new CWorkServer(sock_);
-			ser->Start();
 			m_WorkServerLst.push_back(ser);
+			ser->setEventObj(this);
+			ser->Start();
 		}
 	}
 
@@ -365,7 +389,6 @@ public:
 		if (ret < 0)
 		{
 			printf("select -> Accept 失败，任务结束\n");
-			bRun_ = false;
 			return false;
 		}
 		//等待超时，没有可读写或错误的文件
@@ -393,8 +416,7 @@ public:
 			}
 			else
 			{
-				iMaxClient += 1;
-				printf("<%d>新客户端加入 Socket: %d ; IP: %s\n",iMaxClient, cSock, (inet_ntoa)(clientAddr.sin_addr));
+				printf("<%d>新客户端加入 Socket: %d ; IP: %s\n",(int)fdMain_.fd_count, cSock, (inet_ntoa)(clientAddr.sin_addr));
 				AddClient2WorkServer(cSock);
 			}
 		}
@@ -453,6 +475,10 @@ public:
 			{
 				printf("recvCount: %d, time: %lf\n", recvCount, t1);
 			}
+			else
+			{
+				printf("recvCount: ZERO, time: %lf\n", t1);
+			}
 			m_tTime.Update();
 		}
 
@@ -480,6 +506,14 @@ public:
 		#endif // _WIN32
 	}
 
+	virtual void OnLeave(SOCKET sock)
+	{
+		FD_CLR(sock, &fdRead_);
+		FD_CLR(sock, &fdMain_);
+		//释放
+		closesocket(sock);
+	}
+
 private:
 	//高精度计时器
 	CTimestamp m_tTime;
@@ -499,7 +533,6 @@ private:
 	int iLastPos_ = 0;
 
 	bool bRun_ = true;		//是否运行
-
 };
 
 

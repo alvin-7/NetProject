@@ -113,12 +113,16 @@ public:
 		}
 		else if (0 == ret)
 		{
-			//printf("空闲处理其他业务！\n");
+			printf("空闲处理其他业务！\n");
+			Login login;
+			strcpy(login.uName, "zhuye");
+			strcpy(login.uPassword, "mima");
+			SendData(&login);
 		}
 		if (FD_ISSET(sock_, &fdRead))
 		{
 			FD_CLR(sock_, &fdRead);
-			if (0 == RecvData())
+			if (false == RecvData())
 			{
 				printf("select任务结束！\n");
 				return false;
@@ -212,9 +216,11 @@ public:
 			if (SOCKET_ERROR == iRet)
 			{
 				Close();
+				return SOCKET_ERROR;
 			}
+			printf("发送数据成功\n");
 		}
-		return SOCKET_ERROR;
+		return 1;
 	}
 private:
 	SOCKET sock_;
@@ -268,7 +274,7 @@ void CmdThread(CNetClient * client)
 bool Test();
 
 //测试客户端数量
-const int iCount = 100;
+const int iCount = 1000;
 CNetClient* clientsLst[iCount];
 mutex m;
 
