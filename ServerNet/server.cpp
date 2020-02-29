@@ -425,7 +425,7 @@ public:
 			}
 			else
 			{
-				printf("<%d>新客户端加入 Socket: %d ; IP: %s\n",(int)fdMain_.fd_count, cSock, (inet_ntoa)(clientAddr.sin_addr));
+				//printf("<%d>新客户端加入 Socket: %d ; IP: %s\n",(int)fdMain_.fd_count, cSock, (inet_ntoa)(clientAddr.sin_addr));
 				AddClient2WorkServer(cSock);
 			}
 		}
@@ -479,15 +479,15 @@ public:
 			{
 				int icount = ser->getRecvCount();
 				recvCount += icount;
-				printf("Count : %d\n", icount );
+				//printf("Count : %d\n", icount );
 			}
 			if(recvCount > 0)
 			{
-				printf("recvCount: %d, time: %lf\n", recvCount, t1);
+				printf("clientNum: %d, recvCount: %d, time: %lf\n", fdMain_.fd_count, recvCount, t1);
 			}
 			else
 			{
-				printf("recvCount: ZERO, time: %lf\n", t1);
+				printf("clientNum: %d, recvCount: ZERO, time: %lf\n", fdMain_.fd_count, t1);
 			}
 			m_tTime.Update();
 		}

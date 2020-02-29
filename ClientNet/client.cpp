@@ -190,12 +190,12 @@ public:
 			printf("接收服务器发送的信息：%d\n", loginRet->result);
 		}
 		break;
-		case CMD_LOGINOUT:
+		/*case CMD_LOGINOUT:
 		{
 			LoginoutResult* loginoutRet = (LoginoutResult*)header;
 			printf("接收服务器发送的信息：%d\n", loginoutRet->result);
 		}
-		break;
+		break;*/
 		default:
 		{
 			printf("服务器发送数据Error!\n");
@@ -257,7 +257,7 @@ void CmdThread(CNetClient * client)
 			strcpy(login.uPassword, "mima");
 			client->SendData(&login);
 		}
-		else if (0 == strcmp(cmdBuf, "loginout"))
+		/*else if (0 == strcmp(cmdBuf, "loginout"))
 		{
 			Loginout loginout;
 			strcpy(loginout.uName, "name");
@@ -267,7 +267,7 @@ void CmdThread(CNetClient * client)
 		{
 			DataHeader dh = { CMD_ERROR, 0 };
 			client->SendData(&dh);
-		}
+		}*/
 	}
 }
 
@@ -298,16 +298,19 @@ bool SendThread(const int tid)
 		}
 		clientsLst[i] = new CNetClient();
 		clientsLst[i]->InitSocket();
-	}
-	for (int i = iBegin; i < iEnd; i++)
-	{
-		if (!g_bRun)
-		{
-			return false;
-		}
 		clientsLst[i]->Connect("127.0.0.1", 7777);
-		//printf("Connect<%d> Suceess!\n", i);
 	}
+	//for (int i = iBegin; i < iEnd; i++)
+	//{
+	//	if (!g_bRun)
+	//	{
+	//		return false;
+	//	}
+	//	
+	//	//printf("Connect<%d> Suceess!\n", i);
+	//}
+	std::chrono::milliseconds t(3000);
+	std::this_thread::sleep_for(t);
 
 	Login login;
 	strcpy(login.uName, "zhuye");
@@ -317,7 +320,6 @@ bool SendThread(const int tid)
 		int isDisconnect = 0;
 		for (int i = iBegin; i < iEnd; i++)
 		{
-			lock_guard<mutex> lg(m);
 			clientsLst[i]->SendData(&login);
 			//clientsLst[i]->OnRun();
 		}
