@@ -48,9 +48,9 @@ public:
 	{
 		return lastPos_;
 	}
-	void setLastPos(int pos)
+	void addLastPos(int pos)
 	{
-		lastPos_ = pos;
+		lastPos_ += pos;
 	}
 
 	//发送数据
@@ -133,6 +133,8 @@ public:
 	bool RecvData(SOCKET cSock)
 	{
 		//5. 接受客户端数据
+		//std::lock_guard<std::mutex> lockmy(mutex_);
+
 		int nLen = (int)recv(cSock, arrayRecv_, RECV_BUFF_SIZE, 0);
 		if (nLen <= 0)
 		{
@@ -143,7 +145,7 @@ public:
 		//将接收到的数据拷贝到消息缓冲区末尾
 		memcpy(pClien->getMsgBuf() + pClien->getLastPos(), arrayRecv_, nLen);
 		//消息缓冲区数据尾部位置后移
-		pClien->setLastPos(pClien->getLastPos() + nLen);
+		pClien->addLastPos(nLen);
 		if (pClien->getLastPos() > (RECV_BUFF_SIZE * 5))
 		{
 			printf("数据缓冲区溢出，程序崩溃!!!\n");
@@ -169,7 +171,7 @@ public:
 				}
 				OnNetMsg(pClien, header);
 				//剩余未处理消息缓冲区数据长度
-				pClien->setLastPos(pClien->getLastPos() - iLen);
+				pClien->addLastPos(-iLen);
 				memcpy(pClien->getMsgBuf(), pClien->getMsgBuf() + iLen, pClien->getLastPos());
 
 				iHandle += 1;
@@ -235,7 +237,7 @@ public:
 
 	void AddClient(SOCKET cSock)
 	{
-		std::lock_guard<std::mutex> lockmy(mutex_);
+		//std::lock_guard<std::mutex> lockmy(mutex_);
 		FD_SET(cSock, &fdMain_);//加入套节字到集合,这里是一个读数据的套节字
 		clients_[cSock] = new ClientSocket(cSock);
 	}
@@ -244,6 +246,13 @@ public:
 	int getClientCount()
 	{
 		return fdMain_.fd_count;
+	}
+
+	int getRecvCount()
+	{
+		int iCount = recvCount_;
+		recvCount_ = 0;
+		return iCount;
 	}
 
 	bool IsRun()
@@ -429,7 +438,7 @@ public:
 		auto pMinServer = m_WorkServerLst[0];
 		for (auto pWorkServer : m_WorkServerLst)
 		{
-			if (pMinServer->getClientCount() < pWorkServer->getClientCount())
+			if (pWorkServer->getClientCount() < pMinServer->getClientCount())
 			{
 				pMinServer = pWorkServer;
 			}
@@ -468,8 +477,9 @@ public:
 			int recvCount = 0;
 			for (auto ser : m_WorkServerLst)
 			{
-				recvCount += ser->recvCount_;
-				ser->recvCount_ = 0;
+				int icount = ser->getRecvCount();
+				recvCount += icount;
+				printf("Count : %d\n", icount );
 			}
 			if(recvCount > 0)
 			{

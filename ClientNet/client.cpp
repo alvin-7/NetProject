@@ -357,7 +357,7 @@ int main()
 	}
 	while (g_bRun)
 	{
-		Sleep(100);
+		//Sleep(100);
 	}
 	return 0;
 
