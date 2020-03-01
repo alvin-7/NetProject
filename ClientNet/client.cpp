@@ -4,6 +4,7 @@
 #include <atomic>
 
 #include "defines.h"
+#include "timestamp.hpp"
 
 #pragma warning(disable:4996)
 
@@ -17,6 +18,7 @@ public:
 	{
 		sock_ = INVALID_SOCKET;
 		lastPos_ = 0;
+		recvCount_ = 0;
 		memset(msgBuf_, 0, sizeof(msgBuf_));
 	}
 	virtual ~CNetClient()
@@ -120,11 +122,8 @@ public:
 		}
 		else if (0 == ret)
 		{
-			printf("空闲处理其他业务！\n");
-			Login login;
-			strcpy(login.uName, "zhuye");
-			strcpy(login.uPassword, "mima");
-			SendData(&login);
+			//printf("空闲处理其他业务！\n");
+			return true;
 		}
 		if (FD_ISSET(sock_, &fdRead))
 		{
@@ -164,7 +163,7 @@ public:
 			DataHeader* header = (DataHeader*)msgBuf_;
 			if (lastPos_ >= header->dataLength)
 			{
-				printf("收到<Socket = %d> 命令：%d 数据长度：%d\n", sock_, header->cmd, header->dataLength);
+				//printf("收到<Socket = %d> 命令：%d 数据长度：%d\n", sock_, header->cmd, header->dataLength);
 				OnNetMsg(header);
 				//剩余未处理消息缓冲区数据长度
 				lastPos_ -= header->dataLength;
@@ -187,14 +186,15 @@ public:
 	//处理网络消息
 	void OnNetMsg(DataHeader* header)
 	{
+		recvCount_++;
 		//6. 处理请求
-		printf("OnNetMsg Client...\n");
+		//printf("OnNetMsg Client...\n");
 		switch (header->cmd)
 		{
 		case CMD_LOGIN:
 		{
 			LoginResult* loginRet = (LoginResult*)header;
-			printf("接收服务器发送的信息：%d\n", loginRet->result);
+			//printf("接收服务器发送的信息：%d\n", loginRet->result);
 		}
 		break;
 		/*case CMD_LOGINOUT:
@@ -230,6 +230,13 @@ public:
 		}
 		return 1;
 	}
+
+	unsigned int getRecvCount()
+	{
+		auto temp = recvCount_;
+		recvCount_ = 0;
+		return temp;
+	}
 private:
 	SOCKET sock_;
 	fd_set fdMain_;	//创建一个用来装socket的结构体
@@ -242,10 +249,12 @@ private:
 
 	bool isRun_ = false;
 	mutex mutex_;
+
+	unsigned int recvCount_;
 };
 
 //输入线程
-void CmdThread(CNetClient * client)
+void CmdThread()
 {
 	while (true)
 	{
@@ -256,18 +265,18 @@ void CmdThread(CNetClient * client)
 		//4. 处理请求命令
 		if (0 == strcmp(cmdBuf, "exit"))
 		{
+			g_bRun = false;
 			printf("收到退出命令exit,程序退出！\n");
-			getchar();
 			return;
 		}
-		else if (0 == strcmp(cmdBuf, "login"))
+		/*else if (0 == strcmp(cmdBuf, "login"))
 		{
 			Login login;
 			strcpy(login.uName, "name");
 			strcpy(login.uPassword, "mima");
 			client->SendData(&login);
 		}
-		/*else if (0 == strcmp(cmdBuf, "loginout"))
+		else if (0 == strcmp(cmdBuf, "loginout"))
 		{
 			Loginout loginout;
 			strcpy(loginout.uName, "name");
@@ -295,7 +304,6 @@ bool SendThread(const int tid)
 	int iRange = iCount / _WORKCLIENT_NUM_;
 	int iBegin = (tid - 1) * iRange;
 	int iEnd = tid * iRange;
-	//printf("iBegin = %d;\tiEND = %d\n", iBegin, iEnd);
 
 	if (tid == _WORKCLIENT_NUM_)
 	{
@@ -317,30 +325,26 @@ bool SendThread(const int tid)
 	Login login;
 	strcpy(login.uName, "zhuye");
 	strcpy(login.uPassword, "mima");
+
+	CTimestamp oTime_;
 	while (g_bRun)
 	{
-		//int isDisconnect = 0;
 		for (int i = iBegin; i < iEnd; i++)
 		{
 			clientsLst[i]->SendData(&login);
 			clientsLst[i]->OnRun();
 		}
-		//clientsLst[i]->OnRun();
-			/*if(!clientsLst[i]->OnRun())
+		double time1 = oTime_.GetElapsedSecond();
+		if (time1 > 1.0)
+		{
+			unsigned int allCount = 0;
+			for (int i = iBegin; i < iEnd; i++)
 			{
-				isDisconnect += 1;
-				if (isDisconnect >= iCount)
-				{
-					printf("GameOver!\n");
-					getchar();
-					return false;
-				}
+				allCount += clientsLst[i]->getRecvCount();
 			}
-			else
-			{
-				printf("Sending...\n");
-				clientsLst[i]->SendData(&login);
-			}*/
+			printf("<thread: %d>recvCount: %d, time: %lf\n", tid, allCount, time1);
+			oTime_.Update();
+		}
 	}
 	for (int i = iBegin; i < iEnd; i++)
 	{
@@ -354,6 +358,8 @@ bool Test();
 
 int main() 
 {
+	thread t(CmdThread);
+	t.detach();
 	for (int i = 1; i <= _WORKCLIENT_NUM_; i++)
 	{
 		thread t1(SendThread, i);
@@ -363,86 +369,6 @@ int main()
 	{
 		Sleep(100);
 	}
+	getchar();
 	return 0;
-
-	//return Test();
-
-	//CNetClient client;
-	//client.InitSocket();
-	//bool ret = client.Connect("127.0.0.1", 7777);
-	//if (false == ret)
-	//{
-	//	return false;
-	//}
-	////启动输入线程
-	//std::thread  t1(CmdThread, &client);
-	//t1.detach();
-
-	//while (client.IsRun())
-	//{
-	//	if (!client.OnRun())
-	//	{
-	//		break;
-	//	}
-	//}
-	//client.Close();
-	//return true;
-}
-
-
-bool Test()
-{
-	const int iCount = 1000;
-	CNetClient* clientsLst[iCount];
-	for (int i = 0; i < iCount; i++)
-	{
-		if (!g_bRun)
-		{
-			return 0;
-		}
-		clientsLst[i] = new CNetClient();
-	}
-	for (int i = 0; i < iCount; i++)
-	{
-		if (!g_bRun)
-		{
-			return 0;
-		}
-		clientsLst[i]->Connect("127.0.0.1", 7777);
-		printf("Connect<%d> Suceess!\n", i);
-	}
-
-	Login login;
-	strcpy(login.uName, "zhuye");
-	strcpy(login.uPassword, "mima");
-	while (g_bRun)
-	{
-		int isDisconnect = 0;
-		for (int i = 0; i < iCount; i++)
-		{
-			clientsLst[i]->SendData(&login);
-			//Sleep(100);
-			/*if(!clientsLst[i]->OnRun())
-			{
-				isDisconnect += 1;
-				if (isDisconnect >= iCount)
-				{
-					printf("GameOver!\n");
-					getchar();
-					return false;
-				}
-			}
-			else
-			{
-				printf("Sending...\n");
-				clientsLst[i]->SendData(&login);
-			}*/
-		}
-	}
-	for (int i = 0; i < iCount; i++)
-	{
-		clientsLst[i]->Close();
-		delete clientsLst[i];
-	}
-	return true;
 }

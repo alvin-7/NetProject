@@ -150,12 +150,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="tcpserver.hpp" />
     <ClCompile Include="server.cpp" />
     <ClCompile Include="timer.cpp" />
     <ClCompile Include="timestamp.hpp" />
+    <ClCompile Include="workserver.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="defines.h" />
+    <ClInclude Include="netevent.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

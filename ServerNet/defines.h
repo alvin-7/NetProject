@@ -28,8 +28,6 @@
 #define RECV_HANDLE_SIZE 0
 #endif // !RECV_HANDLE_SIZE
 
-#define _WORKSERVER_NUM_ 4
-
 enum CMD
 {
 	CMD_ERROR,
