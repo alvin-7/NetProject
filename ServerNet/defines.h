@@ -1,7 +1,7 @@
 #pragma once
 
 #ifdef _WIN32
-#define FD_SETSIZE      1024  //需要在WinSock2.h之前定义
+#define FD_SETSIZE      2506  //需要在WinSock2.h之前定义
 #define WIN32_LEAN_AND_MEAN
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <windows.h>

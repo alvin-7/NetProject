@@ -43,7 +43,7 @@ public:
 		{
 			printf("Socket error!\n");
 			//getchar();
-			Close();
+			//Close();
 			return 0;
 		}
 		//printf("Socket Success!\n");
@@ -56,6 +56,8 @@ public:
 		{
 			InitSocket();
 		}
+		//printf("\n");
+		//printf("Init Done\n");
 		//2. connect服务器
 		sockaddr_in _sin = {};
 		_sin.sin_family = AF_INET;
@@ -73,6 +75,10 @@ public:
 			//getchar();
 			return 0;
 		}
+		//printf("Connect Done1\n");
+		//printf("\n");
+
+		isRun_ = true;
 		FD_ZERO(&fdMain_);//将你的套节字集合清空
 		FD_SET(sock_, &fdMain_);//加入你感兴趣的套节字到集合,这里是一个读数据的套节字s
 		//printf("Connect Server Success!\n");
@@ -81,6 +87,7 @@ public:
 	//关闭socket
 	void Close()
 	{
+		isRun_ = false;
 		FD_ZERO(&fdMain_);//将你的套节字集合清空
 
 		#ifdef _WIN32
@@ -134,7 +141,7 @@ public:
 	//判断当前sock是否正常
 	bool IsRun()
 	{
-		return INVALID_SOCKET != sock_ && g_bRun;
+		return INVALID_SOCKET != sock_ && isRun_;
 	}
 
 	//接受数据
@@ -210,15 +217,16 @@ public:
 		{
 			if (header->cmd != 1 || header->dataLength != 68)
 			{
-				printf("<cmd：%d   len：%d>\n", header->cmd, header->dataLength);
+				//printf("<cmd：%d   len：%d>\n", header->cmd, header->dataLength);
 			}
-			int iRet = send(sock_, (const char*)header, (int)header->dataLength, 0);
+			int iRet = SOCKET_ERROR;
+			iRet = send(sock_, (const char*)header, (int)header->dataLength, 0);
 			if (SOCKET_ERROR == iRet)
 			{
 				Close();
-				return SOCKET_ERROR;
+				return iRet;
 			}
-			printf("发送数据成功\n");
+			//printf("发送数据成功\n");
 		}
 		return 1;
 	}
@@ -231,12 +239,15 @@ private:
 	char msgBuf_[RECV_BUFF_SIZE * 5] = {};
 	//记录上次接收数据位置
 	int lastPos_ = 0;
+
+	bool isRun_ = false;
+	mutex mutex_;
 };
 
 //输入线程
 void CmdThread(CNetClient * client)
 {
-	while (g_bRun)
+	while (true)
 	{
 		//3. 输入请求命令
 		char cmdBuf[128] = {};
@@ -245,7 +256,6 @@ void CmdThread(CNetClient * client)
 		//4. 处理请求命令
 		if (0 == strcmp(cmdBuf, "exit"))
 		{
-			g_bRun = false;
 			printf("收到退出命令exit,程序退出！\n");
 			getchar();
 			return;
@@ -274,13 +284,14 @@ void CmdThread(CNetClient * client)
 bool Test();
 
 //测试客户端数量
-const int iCount = 1000;
+const int iCount = 10000;
 CNetClient* clientsLst[iCount];
 mutex m;
 
 //当前4个线程，tid为1-4
 bool SendThread(const int tid)
 {
+	printf("thread<%d>,start\n", tid);
 	int iRange = iCount / _WORKCLIENT_NUM_;
 	int iBegin = (tid - 1) * iRange;
 	int iEnd = tid * iRange;
@@ -292,23 +303,14 @@ bool SendThread(const int tid)
 	}
 	for (int i = iBegin; i < iEnd; i++)
 	{
-		if (!g_bRun)
-		{
-			return false;
-		}
 		clientsLst[i] = new CNetClient();
-		clientsLst[i]->InitSocket();
+	}
+	for (int i = iBegin; i < iEnd; i++)
+	{
 		clientsLst[i]->Connect("127.0.0.1", 7777);
 	}
-	//for (int i = iBegin; i < iEnd; i++)
-	//{
-	//	if (!g_bRun)
-	//	{
-	//		return false;
-	//	}
-	//	
-	//	//printf("Connect<%d> Suceess!\n", i);
-	//}
+	printf("thread<%d>,connect done...\n", tid);
+	
 	std::chrono::milliseconds t(3000);
 	std::this_thread::sleep_for(t);
 
@@ -317,7 +319,7 @@ bool SendThread(const int tid)
 	strcpy(login.uPassword, "mima");
 	while (g_bRun)
 	{
-		int isDisconnect = 0;
+		//int isDisconnect = 0;
 		for (int i = iBegin; i < iEnd; i++)
 		{
 			clientsLst[i]->SendData(&login);
@@ -359,7 +361,7 @@ int main()
 	}
 	while (g_bRun)
 	{
-		//Sleep(100);
+		Sleep(100);
 	}
 	return 0;
 

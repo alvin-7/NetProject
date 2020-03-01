@@ -17,7 +17,9 @@ public:
 	~INetEvent()
 	{}
 	//客户端离开事件
-	virtual void OnLeave(SOCKET pClient) = 0;
+	virtual void OnNetLeave(SOCKET cSock) = 0;
+	virtual void OnNetJoin(SOCKET cSock) = 0;
+	//virtual void OnNetMsg(SOCKET cSock) = 0;
 private:
 	 
 };
@@ -97,8 +99,8 @@ public:
 	void Start()
 	{
 		FD_ZERO(&fdMain_);//将你的套节字集合清空
-		FD_SET(sock_, &fdMain_);
-		pThread_ = new std::thread(std::mem_fun(&CWorkServer::OnRun), this);
+		//FD_SET(sock_, &fdMain_);
+		pThread_ = new std::thread(std::mem_fn(&CWorkServer::OnRun), this);
 	}
 
 	//处理客户端消息
@@ -106,20 +108,46 @@ public:
 	{
 		while(IsRun())
 		{
+			if (newClients_.size() > 0)
+			{
+				std::lock_guard<std::mutex> lock(mutex_);
+				for (auto cSock : newClients_)
+				{
+					FD_SET(cSock, &fdMain_);
+					dClients_[cSock] = new ClientSocket(cSock);
+				}
+				newClients_.clear();
+			}
 			fdRead_ = fdMain_;
-			for (u_int i = 0; i < fdRead_.fd_count; i++)
+			if (fdRead_.fd_count <= 0)
+			{
+				std::chrono::milliseconds t(1);
+				std::this_thread::sleep_for(t);
+				continue;
+			}
+			int ret = select(0, &fdRead_, nullptr, nullptr, nullptr);
+			if (ret < 0)
+			{
+				printf("select -> RecvData 任务结束\n");
+				Close();
+				return false;
+			}
+			else if (ret == 0)
+			{
+				continue;
+			}
+			for (int i = 0; i < (int)fdRead_.fd_count; i++)
 			{
 				if (fdRead_.fd_array[i] == sock_)
 				{
 					continue;
-					//Accept();
 				}
 				if (false == RecvData(fdRead_.fd_array[i])) //失败则清理cSock
 				{
 					SOCKET socketTemp = fdRead_.fd_array[i];
 					if (pNetEvent_)
-						pNetEvent_->OnLeave(socketTemp);
-					clients_.erase(socketTemp);
+						pNetEvent_->OnNetLeave(socketTemp);
+					dClients_.erase(socketTemp);
 					FD_CLR(socketTemp, &fdMain_);
 					//释放
 					closesocket(socketTemp);
@@ -138,10 +166,10 @@ public:
 		int nLen = (int)recv(cSock, arrayRecv_, RECV_BUFF_SIZE, 0);
 		if (nLen <= 0)
 		{
-			printf("<Socket=%d>客户端已退出，任务结束\n", cSock);
+			//printf("<Socket=%d>客户端已退出，任务结束\n", cSock);
 			return false;
 		}
-		ClientSocket* pClien = clients_[cSock];
+		ClientSocket* pClien = dClients_[cSock];
 		//将接收到的数据拷贝到消息缓冲区末尾
 		memcpy(pClien->getMsgBuf() + pClien->getLastPos(), arrayRecv_, nLen);
 		//消息缓冲区数据尾部位置后移
@@ -235,17 +263,16 @@ public:
 		client->SendData(&data);
 	}
 
-	void AddClient(SOCKET cSock)
+	void addClient(SOCKET cSock)
 	{
-		//std::lock_guard<std::mutex> lockmy(mutex_);
-		FD_SET(cSock, &fdMain_);//加入套节字到集合,这里是一个读数据的套节字
-		clients_[cSock] = new ClientSocket(cSock);
+		std::lock_guard<std::mutex> lock(mutex_);
+		newClients_.push_back(cSock);
 	}
 
 	//获取fdset中客户端数量
 	int getClientCount()
 	{
-		return fdMain_.fd_count;
+		return fdMain_.fd_count + newClients_.size();
 	}
 
 	int getRecvCount()
@@ -289,8 +316,10 @@ private:
 
 	bool bRun_;
 
-	std::map<SOCKET, ClientSocket*> clients_;
+	std::map<SOCKET, ClientSocket*> dClients_;
 	INetEvent* pNetEvent_;
+
+	std::vector<SOCKET> newClients_;
 
 public:
 	std::atomic_int recvCount_;
@@ -377,7 +406,7 @@ public:
 		for (int i = 0; i < _WORKSERVER_NUM_; i++)
 		{
 			auto ser = new CWorkServer(sock_);
-			m_WorkServerLst.push_back(ser);
+			workServerLst_.push_back(ser);
 			ser->setEventObj(this);
 			ser->Start();
 		}
@@ -387,17 +416,18 @@ public:
 	bool Accept()
 	{
 		fdRead_ = fdMain_;
-		timeval st = { 1, 0 };	//select 超时参数
+		timeval st = { 0, 10 };	//select 超时参数
 		//nfds 是一个整数值，是指fd_set集合中所有描述符（socket）的范围，而不是数量
 		//即是所有文件描述符最大值+1（Windows平台下已处理，可写0）
 		//第一个参数不管,是兼容目的,最后的是超时标准,select是阻塞操作
 		//当然要设置超时事件.
 		//接着的三个类型为fd_set的参数分别是用于检查套节字的可读性, 可写性, 和列外数据性质.
-		int ret = select(0, &fdRead_, 0, 0, &st);
+		int ret = select(sock_+1, &fdRead_, nullptr, nullptr, &st);
 		//负值：select错误
 		if (ret < 0)
 		{
 			printf("select -> Accept 失败，任务结束\n");
+			Close();
 			return false;
 		}
 		//等待超时，没有可读写或错误的文件
@@ -426,24 +456,25 @@ public:
 			else
 			{
 				//printf("<%d>新客户端加入 Socket: %d ; IP: %s\n",(int)fdMain_.fd_count, cSock, (inet_ntoa)(clientAddr.sin_addr));
-				AddClient2WorkServer(cSock);
+				addClient2WorkServer(cSock);
 			}
 		}
 		return true;
 	}
 
-	void AddClient2WorkServer(SOCKET cSock)
+	void addClient2WorkServer(SOCKET cSock)
 	{
-		FD_SET(cSock, &fdMain_);//加入套节字到集合,这里是一个读数据的套节字
-		auto pMinServer = m_WorkServerLst[0];
-		for (auto pWorkServer : m_WorkServerLst)
+		//FD_SET(cSock, &fdMain_);//加入套节字到集合,这里是一个读数据的套节字
+		auto pMinServer = workServerLst_[0];
+		for (auto pWorkServer : workServerLst_)
 		{
 			if (pWorkServer->getClientCount() < pMinServer->getClientCount())
 			{
 				pMinServer = pWorkServer;
 			}
 		}
-		pMinServer->AddClient(cSock);
+		pMinServer->addClient(cSock);
+		OnNetJoin(cSock);
 	}
 
 	//处理客户端消息
@@ -475,7 +506,7 @@ public:
 		if (t1 >= 1.0)
 		{
 			int recvCount = 0;
-			for (auto ser : m_WorkServerLst)
+			for (auto ser : workServerLst_)
 			{
 				int icount = ser->getRecvCount();
 				recvCount += icount;
@@ -483,11 +514,11 @@ public:
 			}
 			if(recvCount > 0)
 			{
-				printf("clientNum: %d, recvCount: %d, time: %lf\n", fdMain_.fd_count, recvCount, t1);
+				printf("clientNum: %d, recvCount: %d, time: %lf\n", acCount_, recvCount, t1);
 			}
 			else
 			{
-				printf("clientNum: %d, recvCount: ZERO, time: %lf\n", fdMain_.fd_count, t1);
+				printf("clientNum: %d, recvCount: ZERO, time: %lf\n", acCount_, t1);
 			}
 			m_tTime.Update();
 		}
@@ -506,6 +537,7 @@ public:
 
 	void Close()
 	{
+		bRun_ = false;
 		#ifdef _WIN32
 		//7. 关闭套接字
 		closesocket(sock_);
@@ -516,12 +548,13 @@ public:
 		#endif // _WIN32
 	}
 
-	virtual void OnLeave(SOCKET sock)
+	virtual void OnNetLeave(SOCKET cSock)
 	{
-		FD_CLR(sock, &fdRead_);
-		FD_CLR(sock, &fdMain_);
-		//释放
-		closesocket(sock);
+		acCount_--;
+	}
+	void OnNetJoin(SOCKET cSock)
+	{
+		acCount_++;
 	}
 
 private:
@@ -533,7 +566,7 @@ private:
 	fd_set fdMain_;		//创建一个用来装socket的结构体
 	fd_set fdRead_ = fdMain_;
 
-	std::vector<CWorkServer*> m_WorkServerLst;
+	std::vector<CWorkServer*> workServerLst_;
 
 	//消息接收暂存区 动态数组
 	char arrayRecv_[RECV_BUFF_SIZE] = {};
@@ -543,6 +576,7 @@ private:
 	int iLastPos_ = 0;
 
 	bool bRun_ = true;		//是否运行
+	unsigned int acCount_ = 0;
 };
 
 
@@ -554,7 +588,7 @@ int main()
 	{
 		return false;
 	}
-	if (false == server.Bind("0.0.0.0", 7777))
+	if (false == server.Bind("127.0.0.1", 7777))
 	{
 		return false;
 	}
@@ -569,6 +603,7 @@ int main()
 		server.OnRun();
 		//printf("空闲处理其他业务！\n");
 	}
+	server.Close();
 	getchar();
 	return true;
 }
