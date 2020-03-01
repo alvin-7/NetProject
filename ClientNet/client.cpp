@@ -111,7 +111,7 @@ public:
 		fd_set fdRead = fdMain_;
 		//fd_set fdWrite = fdMain_;
 		//fd_set fdExp = fdMain_;
-		timeval st = { 1, 0 };
+		timeval st = { 0, 10 };
 		int ret = select(0, &fdRead, 0, 0, &st);
 		if (ret < 0)
 		{
@@ -323,7 +323,7 @@ bool SendThread(const int tid)
 		for (int i = iBegin; i < iEnd; i++)
 		{
 			clientsLst[i]->SendData(&login);
-			//clientsLst[i]->OnRun();
+			clientsLst[i]->OnRun();
 		}
 		//clientsLst[i]->OnRun();
 			/*if(!clientsLst[i]->OnRun())
