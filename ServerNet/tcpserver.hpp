@@ -7,16 +7,16 @@ tcp服务器
 #include "workserver.hpp"
 #include "timestamp.hpp"
 
-class CTCPServer : public INetEvent
+class CTcpServer : public INetEvent
 {
 public:
-	CTCPServer()
+	CTcpServer()
 	{
 		sock_ = INVALID_SOCKET;
 		iLastPos_ = 0;
 		memset(msgBuf_, 0, sizeof(msgBuf_));
 	}
-	virtual ~CTCPServer()
+	virtual ~CTcpServer()
 	{
 		Close();
 	}
@@ -214,13 +214,17 @@ public:
 #endif // _WIN32
 	}
 
+	virtual void OnNetMsg(ClientSocket* pClient, const DataHeader* pHeader)
+	{
+
+	}
+
 	virtual void OnNetLeave(SOCKET cSock)
 	{
-		acCount_--;
 	}
-	void OnNetJoin(SOCKET cSock)
+
+	virtual void OnNetJoin(SOCKET cSock)
 	{
-		acCount_++;
 	}
 
 private:
@@ -242,5 +246,8 @@ private:
 	int iLastPos_ = 0;
 
 	bool bRun_ = true;		//是否运行
+
+protected:
 	unsigned int acCount_ = 0;
+
 };

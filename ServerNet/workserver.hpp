@@ -13,56 +13,6 @@
 #include "defines.h"
 #include "netevent.h"
 
-
-//客户端数据类型
-class ClientSocket
-{
-public:
-	ClientSocket(SOCKET sockfd = INVALID_SOCKET)
-	{
-		sockfd_ = sockfd;
-		memset(szMsgBuf_, 0, sizeof(szMsgBuf_));
-		lastPos_ = 0;
-	}
-
-	SOCKET getSockfd()
-	{
-		return sockfd_;
-	}
-
-	char* getMsgBuf()
-	{
-		return szMsgBuf_;
-	}
-
-	int getLastPos()
-	{
-		return lastPos_;
-	}
-	void addLastPos(int pos)
-	{
-		lastPos_ += pos;
-	}
-
-	//发送数据
-	int SendData(DataHeader* header)
-	{
-		if (header)
-		{
-			return send(sockfd_, (const char*)header, header->dataLength, 0);
-		}
-		return SOCKET_ERROR;
-	}
-
-private:
-	// socket fd_set  file desc set
-	SOCKET sockfd_;
-	//第二缓冲区 消息缓冲区
-	char szMsgBuf_[RECV_BUFF_SIZE * 5];
-	//消息缓冲区的数据尾部位置
-	int lastPos_;
-};
-
 class CWorkServer
 {
 public:
@@ -207,39 +157,10 @@ public:
 
 
 	//6. 处理请求并发送给客户端
-	virtual void OnNetMsg(ClientSocket* client, const DataHeader* header)
+	virtual void OnNetMsg(ClientSocket* pClient, const DataHeader* pHeader)
 	{
 		recvCount_++;
-		DataHeader data;
-		switch (header->cmd)
-		{
-		case CMD_LOGIN:
-		{
-			Login* login = (Login*)header;
-			//printf("CMD_LOGIN name: %s ; password: %s\n", login->uName, login->uPassword);
-			LoginResult ret;
-			ret.result = true;
-			data = (DataHeader)ret;
-		}
-		break;
-		case CMD_LOGINOUT:
-		{
-			Loginout* loginout = (Loginout*)header;
-			//printf("CMD_LOGIN name: %s\n", loginout->uName);
-			LoginoutResult ret;
-			ret.result = true;
-			data = (DataHeader)ret;
-		}
-		break;
-		default:
-		{
-			DataHeader header = {};
-			header.cmd = CMD_ERROR;
-			data = header;
-		}
-		break;
-		}
-		client->SendData(&data);
+		pNetEvent_->OnNetMsg(pClient, pHeader);
 	}
 
 	void addClient(SOCKET cSock)
