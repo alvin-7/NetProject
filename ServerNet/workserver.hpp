@@ -47,16 +47,6 @@ public:
 	{
 		while (IsRun())
 		{
-			if (newClients_.size() > 0)
-			{
-				std::lock_guard<std::mutex> lock(mutex_);
-				for (auto cSock : newClients_)
-				{
-					FD_SET(cSock, &fdMain_);
-					dClients_[cSock] = new ClientSocket(cSock);
-				}
-				newClients_.clear();
-			}
 			fdRead_ = fdMain_;
 			if (fdRead_.fd_count <= 0)
 			{
@@ -117,19 +107,16 @@ public:
 			getchar();
 			return false;
 		}
-		//printf("nLen: %d", nLen);
 
 		int iHandle = 0;
 		int iDhLen = sizeof(DataHeader);
 		while (pClient->getLastPos() >= iDhLen)
 		{
 			DataHeader* header = (DataHeader*)pClient->getMsgBuf();
-			//printf("HEADER CMD:%d ; LEN: %d\n", header->cmd, header->dataLength);
 
 			short iLen = header->dataLength;
 			if (pClient->getLastPos() >= iLen)
 			{
-				//printf("收到 <Socket = %d> 命令：%d 数据长度：%d\n", cSock, header->cmd, iLen);
 				if (header->cmd != 1)
 				{
 					system("pause");
@@ -166,13 +153,14 @@ public:
 	void addClient(SOCKET cSock)
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
-		newClients_.push_back(cSock);
+		FD_SET(cSock, &fdMain_);
+		dClients_[cSock] = new ClientSocket(cSock);
 	}
 
 	//获取fdset中客户端数量
 	int getClientCount()
 	{
-		return fdMain_.fd_count + newClients_.size();
+		return fdMain_.fd_count;
 	}
 
 	int getRecvCount()
@@ -218,9 +206,6 @@ private:
 
 	std::map<SOCKET, ClientSocket*> dClients_;
 	INetEvent* pNetEvent_;
-
-	std::vector<SOCKET> newClients_;
-
 public:
 	std::atomic_int recvCount_;
 
