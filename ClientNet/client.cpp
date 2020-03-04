@@ -354,7 +354,6 @@ bool SendThread(const int tid)
 	return true;
 }
 
-bool Test();
 
 int main() 
 {
