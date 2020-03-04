@@ -44,11 +44,8 @@ public:
 		if (INVALID_SOCKET == sock_)
 		{
 			printf("Socket error!\n");
-			//getchar();
-			//Close();
 			return 0;
 		}
-		//printf("Socket Success!\n");
 		return 1;
 	}
 	//连接到服务器
@@ -58,8 +55,6 @@ public:
 		{
 			InitSocket();
 		}
-		//printf("\n");
-		//printf("Init Done\n");
 		//2. connect服务器
 		sockaddr_in _sin = {};
 		_sin.sin_family = AF_INET;
@@ -77,13 +72,10 @@ public:
 			//getchar();
 			return 0;
 		}
-		//printf("Connect Done1\n");
-		//printf("\n");
 
 		isRun_ = true;
 		FD_ZERO(&fdMain_);//将你的套节字集合清空
 		FD_SET(sock_, &fdMain_);//加入你感兴趣的套节字到集合,这里是一个读数据的套节字s
-		//printf("Connect Server Success!\n");
 		return 1;
 	}
 	//关闭socket
@@ -122,7 +114,6 @@ public:
 		}
 		else if (0 == ret)
 		{
-			//printf("空闲处理其他业务！\n");
 			return true;
 		}
 		if (FD_ISSET(sock_, &fdRead))
@@ -163,7 +154,6 @@ public:
 			DataHeader* header = (DataHeader*)msgBuf_;
 			if (lastPos_ >= header->dataLength)
 			{
-				//printf("收到<Socket = %d> 命令：%d 数据长度：%d\n", sock_, header->cmd, header->dataLength);
 				OnNetMsg(header);
 				//剩余未处理消息缓冲区数据长度
 				lastPos_ -= header->dataLength;
@@ -188,7 +178,6 @@ public:
 	{
 		recvCount_++;
 		//6. 处理请求
-		//printf("OnNetMsg Client...\n");
 		switch (header->cmd)
 		{
 		case CMD_LOGIN:
@@ -226,7 +215,6 @@ public:
 				Close();
 				return iRet;
 			}
-			//printf("发送数据成功\n");
 		}
 		return 1;
 	}
@@ -290,7 +278,6 @@ void CmdThread()
 	}
 }
 
-bool Test();
 
 //测试客户端数量
 const int iCount = 10000;
@@ -319,8 +306,8 @@ bool SendThread(const int tid)
 	}
 	printf("thread<%d>,connect done...\n", tid);
 	
-	std::chrono::milliseconds t(3000);
-	std::this_thread::sleep_for(t);
+	/*std::chrono::milliseconds t(3000);
+	std::this_thread::sleep_for(t);*/
 
 	Login login;
 	strcpy(login.uName, "zhuye");
