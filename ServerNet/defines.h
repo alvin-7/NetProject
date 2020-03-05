@@ -1,18 +1,18 @@
 #pragma once
 
+#include <functional>
+
 #ifdef _WIN32
 #define FD_SETSIZE      2506  //需要在WinSock2.h之前定义
 #define WIN32_LEAN_AND_MEAN
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <windows.h>
 #include <WinSock2.h>
-#include <functional>
 #pragma comment(lib, "ws2_32.lib")
 #else
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <string.h>
-
 #define SOCKET int
 #define INVALID_SOCKET  (SOCKET)(~0)
 #define SOCKET_ERROR            (-1)

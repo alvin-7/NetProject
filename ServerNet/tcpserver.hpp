@@ -210,7 +210,7 @@ public:
 		//Çå³ýWindows socket»·¾³
 		WSACleanup();
 #else
-		close(_sock);
+		close(sock_);
 #endif // _WIN32
 	}
 

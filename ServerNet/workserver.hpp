@@ -67,10 +67,12 @@ public:
 			}
 			for (int i = 0; i < (int)fdRead_.fd_count; i++)
 			{
+				
+#ifdef _WIN32
 				if (fdRead_.fd_array[i] == sock_)
 				{
 					continue;
-				}
+			}
 				if (false == RecvData(fdRead_.fd_array[i])) //失败则清理cSock
 				{
 					SOCKET socketTemp = fdRead_.fd_array[i];
@@ -80,6 +82,23 @@ public:
 					FD_CLR(socketTemp, &fdMain_);
 					//释放
 					closesocket(socketTemp);
+#else
+				if (fdRead_.fds_bits[i] == sock_)
+				{
+					continue;
+				}
+				if (false == RecvData(fdRead_.fds_bits[i])) //失败则清理cSock
+				{
+					SOCKET socketTemp = fdRead_.fds_bits[i];
+					if (pNetEvent_)
+						pNetEvent_->OnNetLeave(socketTemp);fds_bits
+					dClients_.erase(socketTemp);
+					FD_CLR(socketTemp, &fdMain_);
+					//释放
+					close(socketTemp)
+#endif // _WIN32
+
+					
 				}
 			}
 		}
@@ -183,7 +202,7 @@ public:
 		//清除Windows socket环境
 		WSACleanup();
 #else
-		close(_sock);
+		close(sock_);
 #endif // _WIN32
 	}
 
