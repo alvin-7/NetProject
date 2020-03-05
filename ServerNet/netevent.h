@@ -1,5 +1,10 @@
 #pragma once
+#ifdef _WIN32
 #include <WinSock2.h>
+#else
+#define SOCKET int
+#endif // _WIN32
+
 
 //客户端数据类型
 class ClientSocket
