@@ -20,19 +20,19 @@ public:
 	}
 
 
-	//è·å–å½“å‰ç§’
+	//»ñÈ¡µ±Ç°Ãë
 	double GetElapsedSecond()
 	{
 		return GetElapsedTimeInMicroSec() * 0.000001;
 	}
 
-	//è·å–æ¯«ç§’
+	//»ñÈ¡ºÁÃë
 	double GetElapsedTimeInMilliSec()
 	{
 		return GetElapsedTimeInMicroSec() * 0.001;
 	}
 
-	//è·å–å¾®ç§’
+	//»ñÈ¡Î¢Ãë
 	long long GetElapsedTimeInMicroSec()
 	{
 		auto t = duration_cast<microseconds>(high_resolution_clock::now() - m_Begin).count();

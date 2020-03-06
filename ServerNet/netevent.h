@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifdef _WIN32
 #include <WinSock2.h>
 #else
@@ -48,17 +48,17 @@ public:
 	}
 
 	//发送数据
-	int SendData(const DataHeader* header)
+	int SendData(DataHeader* header)
 	{
 		int ret = SOCKET_ERROR;
 		int iLen = header->dataLength;
 		const char* pSendData = (const char*)header;
-		while(iLen > 0)
+		while (iLen > 0)
 		{
-			if(lastSendPos_ + iLen >= SEND_BUFF_SIZE)
+			if (lastSendPos_ + iLen >= SEND_BUFF_SIZE)
 			{
 				int iLeftLen = SEND_BUFF_SIZE - lastSendPos_;
-				memcpy(sendMsgBuf_ + lastSendPos_, pSendData, iLeftLen);
+				memcpy(sendMsgBuf_, pSendData, iLeftLen);
 				//剩余数据
 				pSendData += iLeftLen;
 				//剩余数据长度
@@ -66,7 +66,7 @@ public:
 				//发送整个缓冲区数据
 				ret = send(sockfd_, sendMsgBuf_, SEND_BUFF_SIZE, 0);
 				lastSendPos_ = 0;
-				if(SOCKET_ERROR == ret)
+				if (SOCKET_ERROR == ret)
 				{
 					return ret;
 				}

@@ -1,4 +1,4 @@
-/*
+﻿/*
 服务端核心
 客户端数据处理中心
 负责接受和处理客户端数据
@@ -67,12 +67,12 @@ public:
 			}
 			for (int i = 0; i < (int)fdRead_.fd_count; i++)
 			{
-				
+
 #ifdef _WIN32
 				if (fdRead_.fd_array[i] == sock_)
 				{
 					continue;
-			}
+				}
 				if (false == RecvData(fdRead_.fd_array[i])) //失败则清理cSock
 				{
 					SOCKET socketTemp = fdRead_.fd_array[i];
@@ -92,13 +92,13 @@ public:
 					SOCKET socketTemp = fdRead_.fds_bits[i];
 					if (pNetEvent_)
 						pNetEvent_->OnNetLeave(socketTemp);fds_bits
-					dClients_.erase(socketTemp);
+						dClients_.erase(socketTemp);
 					FD_CLR(socketTemp, &fdMain_);
 					//释放
 					close(socketTemp)
 #endif // _WIN32
 
-					
+
 				}
 			}
 		}
@@ -109,7 +109,7 @@ public:
 	bool RecvData(SOCKET cSock)
 	{
 		//5. 接受客户端数据
-		int nLen = (int)recv(cSock, arrayRecv_, SINGLE_BUFF_SIZE, 0);
+		int nLen = (int)recv(cSock, arrayRecv_, RECV_BUFF_SIZE, 0);
 		if (nLen <= 0)
 		{
 			//printf("<Socket=%d>客户端已退出，任务结束\n", cSock);
@@ -120,7 +120,7 @@ public:
 		memcpy(pClient->getMsgBuf() + pClient->getRecvLastPos(), arrayRecv_, nLen);
 		//消息缓冲区数据尾部位置后移
 		pClient->addRecvLastPos(nLen);
-		if (pClient->getRecvLastPos() > (RECV_BUFF_SIZE))
+		if (pClient->getRecvLastPos() > (RECV_BUFF_SIZE * 5))
 		{
 			printf("数据缓冲区溢出，程序崩溃!!!\n");
 			getchar();
@@ -163,7 +163,7 @@ public:
 
 
 	//6. 处理请求并发送给客户端
-	virtual void OnNetMsg(ClientSocket* pClient, const DataHeader* pHeader)
+	virtual void OnNetMsg(ClientSocket * pClient, const DataHeader * pHeader)
 	{
 		recvCount_++;
 		pNetEvent_->OnNetMsg(pClient, pHeader);
@@ -216,8 +216,10 @@ private:
 	std::mutex mutex_;
 	std::thread* pThread_;
 
-	//消息接收暂存区
-	char arrayRecv_[SINGLE_BUFF_SIZE];
+	//消息接收暂存区 动态数组
+	char arrayRecv_[RECV_BUFF_SIZE];
+	//消息缓冲区 动态数组
+	char msgBuf_[RECV_BUFF_SIZE * 5];
 
 	bool bRun_;
 

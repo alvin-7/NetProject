@@ -16,18 +16,17 @@
 #define SOCKET_ERROR            (-1)
 #endif // _WIN32
 
-//æŽ¥æ”¶æ¶ˆæ¯ç¼“å†²åŒºå¤§å°
+//½ÓÊÕÏûÏ¢»º³åÇø´óÐ¡
 #ifndef RECV_BUFF_SIZE
-#define SINGLE_BUFF_SIZE 10240
-#define RECV_BUFF_SIZE SINGLE_BUFF_SIZE*5
+#define RECV_BUFF_SIZE 10240
 #endif // !RECV_BUFF_SIZE
 
-//æ¯å¸§å¤„ç†æ¶ˆæ¯æœ€å¤§æ•° 0è¡¨ç¤ºèƒ½å¤„ç†æ— é™æ¡
+//Ã¿Ö¡´¦ÀíÏûÏ¢×î´óÊý 0±íÊ¾ÄÜ´¦ÀíÎÞÏÞÌõ
 #ifndef RECV_HANDLE_SIZE
 #define RECV_HANDLE_SIZE 0
 #endif // !RECV_HANDLE_SIZE
 
-//å®¢æˆ·ç«¯çº¿ç¨‹æ•°
+//¿Í»§¶ËÏß³ÌÊý
 #define _WORKCLIENT_NUM_ 4
 
 bool g_bRun = true;

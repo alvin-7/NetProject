@@ -1,4 +1,4 @@
-//ä½œç”¨äºLinuxå¹³å°çš„å®šæ—¶å™¨ç±»
+//×÷ÓÃÓÚLinuxÆ½Ì¨µÄ¶¨Ê±Æ÷Àà
 #ifndef _WIN32
 #include <stdio.h>
 #include <signal.h>
@@ -19,7 +19,7 @@ struct timer_wheel {
 struct timer_wheel timer = { {0}, 0 };
 void tick(int signo)
 {
-    // ä½¿ç”¨äºŒçº§æŒ‡é’ˆåˆ è¿›è¡Œå•é“¾è¡¨çš„åˆ é™¤
+    // Ê¹ÓÃ¶ş¼¶Ö¸ÕëÉ¾½øĞĞµ¥Á´±íµÄÉ¾³ı
     struct timer_node** cur = &timer.slot[timer.current];
     while (*cur) {
         struct timer_node* curr = *cur;
@@ -40,26 +40,26 @@ void add_timer(int len, func action)
 {
     int pos = (len + timer.current) % TIME_WHEEL_SIZE;
     struct timer_node* node = malloc(sizeof(struct timer_node));
-    // æ’å…¥åˆ°å¯¹åº”æ ¼å­çš„é“¾è¡¨å¤´éƒ¨å³å¯, O(1)å¤æ‚åº¦
+    // ²åÈëµ½¶ÔÓ¦¸ñ×ÓµÄÁ´±íÍ·²¿¼´¿É, O(1)¸´ÔÓ¶È
     node->next = timer.slot[pos];
     timer.slot[pos] = node;
     node->rotation = len / TIME_WHEEL_SIZE;
     node->data = 0;
     node->proc = action;
 }
-// test case1: 1så¾ªç¯å®šæ—¶å™¨
+// test case1: 1sÑ­»·¶¨Ê±Æ÷
 int g_sec = 0;
 void do_time1(int data)
 {
     printf("timer %s, %d\n", __FUNCTION__, g_sec++);
     add_timer(1, do_time1);
 }
-// test case2: 2så•æ¬¡å®šæ—¶å™¨
+// test case2: 2sµ¥´Î¶¨Ê±Æ÷
 void do_time2(int data)
 {
     printf("timer %s\n", __FUNCTION__);
 }
-// test case3: 9så¾ªç¯å®šæ—¶å™¨
+// test case3: 9sÑ­»·¶¨Ê±Æ÷
 void do_time9(int data)
 {
     printf("timer %s\n", __FUNCTION__);
@@ -68,7 +68,7 @@ void do_time9(int data)
 int main()
 {
     signal(SIGALRM, tick);
-    alarm(1); // 1sçš„å‘¨æœŸå¿ƒè·³
+    alarm(1); // 1sµÄÖÜÆÚĞÄÌø
     // test
     add_timer(1, do_time1);
     add_timer(2, do_time2);
