@@ -3,7 +3,7 @@
 #include <functional>
 
 #ifdef _WIN32
-#define FD_SETSIZE      2506  //ÐèÒªÔÚWinSock2.hÖ®Ç°¶¨Òå
+#define FD_SETSIZE      2506  //éœ€è¦åœ¨WinSock2.hä¹‹å‰å®šä¹‰
 #define WIN32_LEAN_AND_MEAN
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <windows.h>
@@ -18,12 +18,12 @@
 #define SOCKET_ERROR            (-1)
 #endif // _WIN32
 
-//½ÓÊÕÏûÏ¢»º³åÇø´óÐ¡
+//æŽ¥æ”¶æ¶ˆæ¯ç¼“å†²åŒºå¤§å°
 #ifndef RECV_BUFF_SIZE
 #define RECV_BUFF_SIZE 10240
 #endif // !RECV_BUFF_SIZE
 
-//Ã¿Ö¡´¦ÀíÏûÏ¢×î´óÊý 0±íÊ¾ÄÜ´¦ÀíÎÞÏÞÌõ
+//æ¯å¸§å¤„ç†æ¶ˆæ¯æœ€å¤§æ•° 0è¡¨ç¤ºèƒ½å¤„ç†æ— é™æ¡
 #ifndef RECV_HANDLE_SIZE
 #define RECV_HANDLE_SIZE 0
 #endif // !RECV_HANDLE_SIZE

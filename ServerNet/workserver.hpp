@@ -1,7 +1,7 @@
 /*
-·şÎñ¶ËºËĞÄ
-¿Í»§¶ËÊı¾İ´¦ÀíÖĞĞÄ
-¸ºÔğ½ÓÊÜºÍ´¦Àí¿Í»§¶ËÊı¾İ
+æœåŠ¡ç«¯æ ¸å¿ƒ
+å®¢æˆ·ç«¯æ•°æ®å¤„ç†ä¸­å¿ƒ
+è´Ÿè´£æ¥å—å’Œå¤„ç†å®¢æˆ·ç«¯æ•°æ®
 */
 
 #include <stdio.h>
@@ -37,12 +37,12 @@ public:
 
 	void Start()
 	{
-		FD_ZERO(&fdMain_);//½«ÄãµÄÌ×½Ú×Ö¼¯ºÏÇå¿Õ
+		FD_ZERO(&fdMain_);//å°†ä½ çš„å¥—èŠ‚å­—é›†åˆæ¸…ç©º
 		//FD_SET(sock_, &fdMain_);
 		pThread_ = new std::thread(std::mem_fn(&CWorkServer::OnRun), this);
 	}
 
-	//´¦Àí¿Í»§¶ËÏûÏ¢
+	//å¤„ç†å®¢æˆ·ç«¯æ¶ˆæ¯
 	bool OnRun()
 	{
 		while (IsRun())
@@ -57,7 +57,7 @@ public:
 			int ret = select(0, &fdRead_, nullptr, nullptr, nullptr);
 			if (ret < 0)
 			{
-				printf("select -> RecvData ÈÎÎñ½áÊø\n");
+				printf("select -> RecvData ä»»åŠ¡ç»“æŸ\n");
 				Close();
 				return false;
 			}
@@ -73,28 +73,28 @@ public:
 				{
 					continue;
 			}
-				if (false == RecvData(fdRead_.fd_array[i])) //Ê§°ÜÔòÇåÀícSock
+				if (false == RecvData(fdRead_.fd_array[i])) //å¤±è´¥åˆ™æ¸…ç†cSock
 				{
 					SOCKET socketTemp = fdRead_.fd_array[i];
 					if (pNetEvent_)
 						pNetEvent_->OnNetLeave(socketTemp);
 					dClients_.erase(socketTemp);
 					FD_CLR(socketTemp, &fdMain_);
-					//ÊÍ·Å
+					//é‡Šæ”¾
 					closesocket(socketTemp);
 #else
 				if (fdRead_.fds_bits[i] == sock_)
 				{
 					continue;
 				}
-				if (false == RecvData(fdRead_.fds_bits[i])) //Ê§°ÜÔòÇåÀícSock
+				if (false == RecvData(fdRead_.fds_bits[i])) //å¤±è´¥åˆ™æ¸…ç†cSock
 				{
 					SOCKET socketTemp = fdRead_.fds_bits[i];
 					if (pNetEvent_)
 						pNetEvent_->OnNetLeave(socketTemp);fds_bits
 					dClients_.erase(socketTemp);
 					FD_CLR(socketTemp, &fdMain_);
-					//ÊÍ·Å
+					//é‡Šæ”¾
 					close(socketTemp)
 #endif // _WIN32
 
@@ -105,24 +105,24 @@ public:
 		return true;
 	}
 
-	//½ÓÊÕÊı¾İ
+	//æ¥æ”¶æ•°æ®
 	bool RecvData(SOCKET cSock)
 	{
-		//5. ½ÓÊÜ¿Í»§¶ËÊı¾İ
+		//5. æ¥å—å®¢æˆ·ç«¯æ•°æ®
 		int nLen = (int)recv(cSock, arrayRecv_, RECV_BUFF_SIZE, 0);
 		if (nLen <= 0)
 		{
-			//printf("<Socket=%d>¿Í»§¶ËÒÑÍË³ö£¬ÈÎÎñ½áÊø\n", cSock);
+			//printf("<Socket=%d>å®¢æˆ·ç«¯å·²é€€å‡ºï¼Œä»»åŠ¡ç»“æŸ\n", cSock);
 			return false;
 		}
 		ClientSocket* pClient = dClients_[cSock];
-		//½«½ÓÊÕµ½µÄÊı¾İ¿½±´µ½ÏûÏ¢»º³åÇøÄ©Î²
+		//å°†æ¥æ”¶åˆ°çš„æ•°æ®æ‹·è´åˆ°æ¶ˆæ¯ç¼“å†²åŒºæœ«å°¾
 		memcpy(pClient->getMsgBuf() + pClient->getLastPos(), arrayRecv_, nLen);
-		//ÏûÏ¢»º³åÇøÊı¾İÎ²²¿Î»ÖÃºóÒÆ
+		//æ¶ˆæ¯ç¼“å†²åŒºæ•°æ®å°¾éƒ¨ä½ç½®åç§»
 		pClient->addLastPos(nLen);
 		if (pClient->getLastPos() > (RECV_BUFF_SIZE * 5))
 		{
-			printf("Êı¾İ»º³åÇøÒç³ö£¬³ÌĞò±ÀÀ£!!!\n");
+			printf("æ•°æ®ç¼“å†²åŒºæº¢å‡ºï¼Œç¨‹åºå´©æºƒ!!!\n");
 			getchar();
 			return false;
 		}
@@ -141,7 +141,7 @@ public:
 					system("pause");
 				}
 				OnNetMsg(pClient, header);
-				//Ê£ÓàÎ´´¦ÀíÏûÏ¢»º³åÇøÊı¾İ³¤¶È
+				//å‰©ä½™æœªå¤„ç†æ¶ˆæ¯ç¼“å†²åŒºæ•°æ®é•¿åº¦
 				pClient->addLastPos(-iLen);
 				memcpy(pClient->getMsgBuf(), pClient->getMsgBuf() + iLen, pClient->getLastPos());
 
@@ -154,7 +154,7 @@ public:
 			}
 			else
 			{
-				//ÏûÏ¢»º³åÇø²»×ãÒ»ÌõÍêÕûÏûÏ¢
+				//æ¶ˆæ¯ç¼“å†²åŒºä¸è¶³ä¸€æ¡å®Œæ•´æ¶ˆæ¯
 				break;
 			}
 		}
@@ -162,7 +162,7 @@ public:
 	}
 
 
-	//6. ´¦ÀíÇëÇó²¢·¢ËÍ¸ø¿Í»§¶Ë
+	//6. å¤„ç†è¯·æ±‚å¹¶å‘é€ç»™å®¢æˆ·ç«¯
 	virtual void OnNetMsg(ClientSocket* pClient, const DataHeader* pHeader)
 	{
 		recvCount_++;
@@ -176,7 +176,7 @@ public:
 		dClients_[cSock] = new ClientSocket(cSock);
 	}
 
-	//»ñÈ¡fdsetÖĞ¿Í»§¶ËÊıÁ¿
+	//è·å–fdsetä¸­å®¢æˆ·ç«¯æ•°é‡
 	int getClientCount()
 	{
 		return fdMain_.fd_count;
@@ -197,9 +197,9 @@ public:
 	void Close()
 	{
 #ifdef _WIN32
-		//7. ¹Ø±ÕÌ×½Ó×Ö
+		//7. å…³é—­å¥—æ¥å­—
 		closesocket(sock_);
-		//Çå³ıWindows socket»·¾³
+		//æ¸…é™¤Windows socketç¯å¢ƒ
 		WSACleanup();
 #else
 		close(sock_);
@@ -208,17 +208,17 @@ public:
 
 private:
 	SOCKET sock_;
-	//×ÜSocket¶ÓÁĞ
-	fd_set fdMain_;		//´´½¨Ò»¸öÓÃÀ´×°socketµÄ½á¹¹Ìå
-	//ÁÙÊ±Socket¶ÓÁĞ
+	//æ€»Socketé˜Ÿåˆ—
+	fd_set fdMain_;		//åˆ›å»ºä¸€ä¸ªç”¨æ¥è£…socketçš„ç»“æ„ä½“
+	//ä¸´æ—¶Socketé˜Ÿåˆ—
 	fd_set fdRead_ = fdMain_;
 
 	std::mutex mutex_;
 	std::thread* pThread_;
 
-	//ÏûÏ¢½ÓÊÕÔİ´æÇø ¶¯Ì¬Êı×é
+	//æ¶ˆæ¯æ¥æ”¶æš‚å­˜åŒº åŠ¨æ€æ•°ç»„
 	char arrayRecv_[RECV_BUFF_SIZE];
-	//ÏûÏ¢»º³åÇø ¶¯Ì¬Êı×é
+	//æ¶ˆæ¯ç¼“å†²åŒº åŠ¨æ€æ•°ç»„
 	char msgBuf_[RECV_BUFF_SIZE * 5];
 
 	bool bRun_;

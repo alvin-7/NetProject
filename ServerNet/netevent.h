@@ -6,7 +6,7 @@
 #endif // _WIN32
 
 
-//¿Í»§¶ËÊı¾İÀàĞÍ
+//å®¢æˆ·ç«¯æ•°æ®ç±»å‹
 class ClientSocket
 {
 public:
@@ -36,7 +36,7 @@ public:
 		lastPos_ += pos;
 	}
 
-	//·¢ËÍÊı¾İ
+	//å‘é€æ•°æ®
 	int SendData(DataHeader* header)
 	{
 		if (header)
@@ -49,9 +49,9 @@ public:
 private:
 	// socket fd_set  file desc set
 	SOCKET sockfd_;
-	//µÚ¶ş»º³åÇø ÏûÏ¢»º³åÇø
+	//ç¬¬äºŒç¼“å†²åŒº æ¶ˆæ¯ç¼“å†²åŒº
 	char szMsgBuf_[RECV_BUFF_SIZE * 5];
-	//ÏûÏ¢»º³åÇøµÄÊı¾İÎ²²¿Î»ÖÃ
+	//æ¶ˆæ¯ç¼“å†²åŒºçš„æ•°æ®å°¾éƒ¨ä½ç½®
 	int lastPos_;
 };
 
@@ -62,7 +62,7 @@ public:
 	{}
 	~INetEvent()
 	{}
-	//¿Í»§¶ËÀë¿ªÊÂ¼ş
+	//å®¢æˆ·ç«¯ç¦»å¼€äº‹ä»¶
 	virtual void OnNetLeave(SOCKET cSock) = 0;
 	virtual void OnNetJoin(SOCKET cSock) = 0;
 	virtual void OnNetMsg(ClientSocket* pClient, const DataHeader* pHeader) = 0;
