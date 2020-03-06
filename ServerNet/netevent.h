@@ -14,7 +14,8 @@ public:
 	{
 		sockfd_ = sockfd;
 		memset(recvMsgBuf_, 0, sizeof(recvMsgBuf_));
-		lastPos_ = 0;
+		lastRecvPos_ = 0;
+		lastSendPos_ = 0;
 	}
 
 	SOCKET getSockfd()
@@ -27,34 +28,70 @@ public:
 		return recvMsgBuf_;
 	}
 
-	int getLastPos()
+	int getRecvLastPos()
 	{
-		return lastPos_;
+		return lastRecvPos_;
 	}
-	void addLastPos(int pos)
+	void addRecvLastPos(int pos)
 	{
-		lastPos_ += pos;
+		lastRecvPos_ += pos;
+	}
+
+	int getSendLastPos()
+	{
+		return lastSendPos_;
+	}
+
+	void addSendLastPos(int pos)
+	{
+		lastSendPos_ += pos;
 	}
 
 	//发送数据
 	int SendData(DataHeader* header)
 	{
-		if (header)
+		int ret = SOCKET_ERROR;
+		int iLen = header->dataLength;
+		const char* pSendData = (const char*)header;
+		while(iLen > 0)
 		{
-			return send(sockfd_, (const char*)header, header->dataLength, 0);
+			if(lastSendPos_ + iLen >= SEND_BUFF_SIZE)
+			{
+				int iLeftLen = SEND_BUFF_SIZE - lastSendPos_;
+				memcpy(sendMsgBuf_, pSendData, iLeftLen);
+				//剩余数据
+				pSendData += iLeftLen;
+				//剩余数据长度
+				iLen -= iLeftLen;
+				//发送整个缓冲区数据
+				ret = send(sockfd_, sendMsgBuf_, SEND_BUFF_SIZE, 0);
+				lastSendPos_ = 0;
+				if(SOCKET_ERROR == ret)
+				{
+					return ret;
+				}
+			}
+			else
+			{
+				memcpy(sendMsgBuf_+lastSendPos_, pSendData, iLen);
+				lastSendPos_ += iLen;
+				iLen = 0;
+			}
 		}
-		return SOCKET_ERROR;
+		return ret;
 	}
 
 private:
 	// socket fd_set  file desc set
 	SOCKET sockfd_;
-	//第二缓冲区 消息缓冲区
+	//接收缓冲区
 	char recvMsgBuf_[RECV_BUFF_SIZE];
 	//发送缓冲区
 	char sendMsgBuf_[SEND_BUFF_SIZE];
-	//消息缓冲区的数据尾部位置
-	int lastPos_;
+	//接收缓冲区的数据尾部位置
+	int lastRecvPos_;
+	//发送缓冲区的数据尾部位置
+	int lastSendPos_;
 };
 
 class INetEvent

@@ -117,10 +117,10 @@ public:
 		}
 		ClientSocket* pClient = dClients_[cSock];
 		//将接收到的数据拷贝到消息缓冲区末尾
-		memcpy(pClient->getMsgBuf() + pClient->getLastPos(), arrayRecv_, nLen);
+		memcpy(pClient->getMsgBuf() + pClient->getRecvLastPos(), arrayRecv_, nLen);
 		//消息缓冲区数据尾部位置后移
-		pClient->addLastPos(nLen);
-		if (pClient->getLastPos() > (RECV_BUFF_SIZE))
+		pClient->addRecvLastPos(nLen);
+		if (pClient->getRecvLastPos() > (RECV_BUFF_SIZE))
 		{
 			printf("数据缓冲区溢出，程序崩溃!!!\n");
 			getchar();
@@ -129,12 +129,12 @@ public:
 
 		int iHandle = 0;
 		int iDhLen = sizeof(DataHeader);
-		while (pClient->getLastPos() >= iDhLen)
+		while (pClient->getRecvLastPos() >= iDhLen)
 		{
 			DataHeader* header = (DataHeader*)pClient->getMsgBuf();
 
 			short iLen = header->dataLength;
-			if (pClient->getLastPos() >= iLen)
+			if (pClient->getRecvLastPos() >= iLen)
 			{
 				if (header->cmd != 1)
 				{
@@ -142,8 +142,8 @@ public:
 				}
 				OnNetMsg(pClient, header);
 				//剩余未处理消息缓冲区数据长度
-				pClient->addLastPos(-iLen);
-				memcpy(pClient->getMsgBuf(), pClient->getMsgBuf() + iLen, pClient->getLastPos());
+				pClient->addRecvLastPos(-iLen);
+				memcpy(pClient->getMsgBuf(), pClient->getMsgBuf() + iLen, pClient->getRecvLastPos());
 
 				iHandle += 1;
 				if (0 != RECV_HANDLE_SIZE and iHandle >= RECV_HANDLE_SIZE)
