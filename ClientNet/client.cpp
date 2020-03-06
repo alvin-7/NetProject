@@ -138,7 +138,7 @@ public:
 	bool RecvData()
 	{	
 		//5. 接受客户端数据
-		int nLen = recv(sock_, arrayRecv_, RECV_BUFF_SIZE, 0);
+		int nLen = recv(sock_, arrayRecv_, SINGLE_BUFF_SIZE, 0);
 		if (nLen <= 0)
 		{
 			printf("<Socket=%d>与服务器断开连接，任务结束\n", sock_);
@@ -229,9 +229,9 @@ private:
 	SOCKET sock_;
 	fd_set fdMain_;	//创建一个用来装socket的结构体
 	//消息接收暂存区 动态数组
-	char arrayRecv_[RECV_BUFF_SIZE] = {};
+	char arrayRecv_[SINGLE_BUFF_SIZE] = {};
 	//消息缓冲区 动态数组
-	char msgBuf_[RECV_BUFF_SIZE * 5] = {};
+	char msgBuf_[RECV_BUFF_SIZE] = {};
 	//记录上次接收数据位置
 	int lastPos_ = 0;
 

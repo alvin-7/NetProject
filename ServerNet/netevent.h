@@ -13,7 +13,7 @@ public:
 	ClientSocket(SOCKET sockfd = INVALID_SOCKET)
 	{
 		sockfd_ = sockfd;
-		memset(szMsgBuf_, 0, sizeof(szMsgBuf_));
+		memset(recvMsgBuf_, 0, sizeof(recvMsgBuf_));
 		lastPos_ = 0;
 	}
 
@@ -24,7 +24,7 @@ public:
 
 	char* getMsgBuf()
 	{
-		return szMsgBuf_;
+		return recvMsgBuf_;
 	}
 
 	int getLastPos()
@@ -50,7 +50,9 @@ private:
 	// socket fd_set  file desc set
 	SOCKET sockfd_;
 	//第二缓冲区 消息缓冲区
-	char szMsgBuf_[RECV_BUFF_SIZE * 5];
+	char recvMsgBuf_[RECV_BUFF_SIZE];
+	//发送缓冲区
+	char sendMsgBuf_[SEND_BUFF_SIZE];
 	//消息缓冲区的数据尾部位置
 	int lastPos_;
 };

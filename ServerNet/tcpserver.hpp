@@ -13,8 +13,6 @@ public:
 	CTcpServer()
 	{
 		sock_ = INVALID_SOCKET;
-		iLastPos_ = 0;
-		memset(msgBuf_, 0, sizeof(msgBuf_));
 	}
 	virtual ~CTcpServer()
 	{
@@ -237,13 +235,6 @@ private:
 	fd_set fdRead_ = fdMain_;
 
 	std::vector<CWorkServer*> workServerLst_;
-
-	//消息接收暂存区 动态数组
-	char arrayRecv_[RECV_BUFF_SIZE] = {};
-	//消息缓冲区 动态数组
-	char msgBuf_[RECV_BUFF_SIZE * 5] = {};
-	//记录上次接收数据位置
-	int iLastPos_ = 0;
 
 	bool bRun_ = true;		//是否运行
 

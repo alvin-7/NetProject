@@ -20,7 +20,9 @@
 
 //接收消息缓冲区大小
 #ifndef RECV_BUFF_SIZE
-#define RECV_BUFF_SIZE 10240
+#define SINGLE_BUFF_SIZE 10240
+#define RECV_BUFF_SIZE SINGLE_BUFF_SIZE*5
+#define SEND_BUFF_SIZE RECV_BUFF_SIZE
 #endif // !RECV_BUFF_SIZE
 
 //每帧处理消息最大数 0表示能处理无限条
