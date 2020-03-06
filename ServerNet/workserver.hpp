@@ -109,7 +109,7 @@ public:
 	bool RecvData(SOCKET cSock)
 	{
 		//5. 接受客户端数据
-		int nLen = (int)recv(cSock, arrayRecv_, RECV_BUFF_SIZE, 0);
+		int nLen = (int)recv(cSock, arrayRecv_, SINGLE_BUFF_SIZE, 0);
 		if (nLen <= 0)
 		{
 			//printf("<Socket=%d>客户端已退出，任务结束\n", cSock);
@@ -120,7 +120,7 @@ public:
 		memcpy(pClient->getMsgBuf() + pClient->getRecvLastPos(), arrayRecv_, nLen);
 		//消息缓冲区数据尾部位置后移
 		pClient->addRecvLastPos(nLen);
-		if (pClient->getRecvLastPos() > (RECV_BUFF_SIZE * 5))
+		if (pClient->getRecvLastPos() > (RECV_BUFF_SIZE))
 		{
 			printf("数据缓冲区溢出，程序崩溃!!!\n");
 			getchar();
@@ -217,9 +217,7 @@ private:
 	std::thread* pThread_;
 
 	//消息接收暂存区 动态数组
-	char arrayRecv_[RECV_BUFF_SIZE];
-	//消息缓冲区 动态数组
-	char msgBuf_[RECV_BUFF_SIZE * 5];
+	char arrayRecv_[SINGLE_BUFF_SIZE];
 
 	bool bRun_;
 
