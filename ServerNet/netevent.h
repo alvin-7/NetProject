@@ -48,7 +48,7 @@ public:
 	}
 
 	//发送数据
-	int SendData(DataHeader* header)
+	int SendData(const DataHeader* header)
 	{
 		int ret = SOCKET_ERROR;
 		int iLen = header->dataLength;
@@ -58,7 +58,7 @@ public:
 			if(lastSendPos_ + iLen >= SEND_BUFF_SIZE)
 			{
 				int iLeftLen = SEND_BUFF_SIZE - lastSendPos_;
-				memcpy(sendMsgBuf_, pSendData, iLeftLen);
+				memcpy(sendMsgBuf_ + lastSendPos_, pSendData, iLeftLen);
 				//剩余数据
 				pSendData += iLeftLen;
 				//剩余数据长度
@@ -73,7 +73,7 @@ public:
 			}
 			else
 			{
-				memcpy(sendMsgBuf_+lastSendPos_, pSendData, iLen);
+				memcpy(sendMsgBuf_ + lastSendPos_, pSendData, iLen);
 				lastSendPos_ += iLen;
 				iLen = 0;
 			}
