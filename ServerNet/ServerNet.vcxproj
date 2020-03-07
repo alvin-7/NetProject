@@ -150,6 +150,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="task.hpp" />
     <ClCompile Include="tcpserver.hpp" />
     <ClCompile Include="server.cpp" />
     <ClCompile Include="timer.cpp" />

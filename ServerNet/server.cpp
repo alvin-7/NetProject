@@ -39,12 +39,12 @@ public:
 
 	virtual void OnNetJoin(SOCKET cSock)
 	{
-		acCount_++;
+		CTcpServer::OnNetJoin(cSock);
 	}
 
 	virtual void OnNetLeave(SOCKET cSock)
 	{
-		acCount_--;
+		CTcpServer::OnNetLeave(cSock);
 	}
 };
 

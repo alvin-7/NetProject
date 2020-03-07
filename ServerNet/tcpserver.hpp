@@ -6,6 +6,7 @@ tcp服务器
 
 #include "workserver.hpp"
 #include "timestamp.hpp"
+#include "task.hpp"
 
 class CTcpServer : public INetEvent
 {
@@ -223,10 +224,12 @@ public:
 
 	virtual void OnNetLeave(SOCKET cSock)
 	{
+		acCount_--;
 	}
 
 	virtual void OnNetJoin(SOCKET cSock)
 	{
+		acCount_++;
 	}
 
 private:
