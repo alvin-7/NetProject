@@ -15,12 +15,12 @@ private:
 
 	SOCKET sock_;
 	fd_set fdMain_;		//创建一个用来装socket的结构体
-	fd_set fdRead_ = fdMain_;
+	fd_set fdRead_;
 
 	std::vector<CWorkServer*> workServerLst_;
 
 
-	bool bRun_ = true;		//是否运行
+	bool bRun_;		//是否运行
 
 protected:
 	unsigned int acCount_ = 0;
@@ -29,6 +29,7 @@ public:
 	CTcpServer()
 	{
 		sock_ = INVALID_SOCKET;
+		bRun_ = true;
 	}
 	virtual ~CTcpServer()
 	{
@@ -202,11 +203,11 @@ public:
 			}
 			if (recvCount > 0 or sendCount > 0)
 			{
-				printf("clientNum: %d, recvCount: %-10d sendCount: %-6d time: %-6lf\n", acCount_, recvCount,sendCount, t1);
+				printf("clientNum: %-6d recvCount: %-10d sendCount: %-6d time: %-6lf\n", acCount_, recvCount,sendCount, t1);
 			}
 			else
 			{
-				printf("clientNum: %d, recvCount: ZERO sendCount: ZERO  time: %lf\n", acCount_, t1);
+				printf("clientNum: %-6d recvCount: ZERO sendCount: ZERO  time: %lf\n", acCount_, t1);
 			}
 			oTime_.Update();
 		}
@@ -231,7 +232,7 @@ public:
 #endif // _WIN32
 	}
 
-	virtual void OnNetMsg(ClientSocket* pClient, const DataHeader* pHeader)
+	virtual void OnNetMsg(CWorkServer* pWorkServer, ClientSocket* pClient, const DataHeader* pHeader)
 	{
 
 	}

@@ -12,6 +12,7 @@
 #include <map>
 #include "defines.h"
 #include "clientsock.hpp"
+#include "task.hpp"
 
 class CWorkServer
 {
@@ -32,6 +33,8 @@ private:
 
 	std::map<SOCKET, ClientSocket*> dClients_;
 	INetEvent* pNetEvent_;
+
+	CServerTask taskServer_;
 protected:
 	std::atomic_int recvCount_;
 
@@ -59,8 +62,8 @@ public:
 	void Start()
 	{
 		FD_ZERO(&fdMain_);//将你的套节字集合清空
-		//FD_SET(sock_, &fdMain_);
 		pThread_ = new std::thread(std::mem_fn(&CWorkServer::OnRun), this);
+		taskServer_.Start();
 	}
 
 	//处理客户端消息
@@ -183,7 +186,7 @@ public:
 	virtual void OnNetMsg(ClientSocket * pClient, const DataHeader * pHeader)
 	{
 		recvCount_++;
-		pNetEvent_->OnNetMsg(pClient, pHeader);
+		pNetEvent_->OnNetMsg(this, pClient, pHeader);
 	}
 
 	void addClient(SOCKET cSock)
@@ -233,4 +236,9 @@ public:
 #endif // _WIN32
 	}
 
+	void addSendTask(ClientSocket* pclient, DataHeader* pheader)
+	{
+		CSendMsg2ClientTask* task = new CSendMsg2ClientTask(pclient, pheader);
+		taskServer_.addTask(task);
+	}
 };

@@ -1,4 +1,5 @@
 #ifndef _TASK_H_
+#define _TASK_H_
 #include <thread>
 #include <mutex>
 #include <list>
@@ -14,9 +15,7 @@ public:
 	{
 	}
 
-	virtual void doTask()
-	{
-	}
+	virtual void doTask() = 0;
 
 };
 
@@ -54,6 +53,7 @@ public:
 		t.detach();
 	}
 
+protected:
 	//¹¤×÷º¯Êý
 	void OnRun()
 	{
@@ -81,7 +81,7 @@ public:
 				pTask->doTask();
 				delete pTask;
 			}
-
+			tasks_.clear();
 		}
 	}
 

@@ -3,38 +3,38 @@
 class CMyServer : public CTcpServer
 {
 public:
-	virtual void OnNetMsg(ClientSocket* pClient, const DataHeader* pHeader)
+	virtual void OnNetMsg(CWorkServer* pWorkServer, ClientSocket* pClient, const DataHeader* pHeader)
 	{
-		DataHeader data;
+		DataHeader* pdata;
 		switch (pHeader->cmd)
 		{
 		case CMD_LOGIN:
 		{
 			Login* login = (Login*)pHeader;
 			//printf("CMD_LOGIN name: %s ; password: %s\n", login->uName, login->uPassword);
-			LoginResult ret;
-			ret.result = true;
-			data = (DataHeader)ret;
+			LoginResult* ret = new LoginResult();
+			ret->result = true;
+			pdata = ret;
 		}
 		break;
 		case CMD_LOGINOUT:
 		{
 			Loginout* loginout = (Loginout*)pHeader;
 			//printf("CMD_LOGIN name: %s\n", loginout->uName);
-			LoginoutResult ret;
-			ret.result = true;
-			data = (DataHeader)ret;
+			LoginoutResult* ret = new LoginoutResult();
+			ret->result = true;
+			pdata = ret;
 		}
 		break;
 		default:
 		{
-			DataHeader header = {};
-			header.cmd = CMD_ERROR;
-			data = header;
+			DataHeader* ret = new DataHeader();
+			ret->cmd = CMD_ERROR;
+			pdata = ret;
 		}
 		break;
 		}
-		pClient->SendData(&data);
+		pWorkServer->addSendTask(pClient, pdata);
 	}
 
 	virtual void OnNetJoin(SOCKET cSock)

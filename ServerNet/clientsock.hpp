@@ -106,6 +106,8 @@ public:
 	}
 };
 
+class CWorkServer;
+
 class INetEvent
 {
 public:
@@ -116,16 +118,24 @@ public:
 	//客户端离开事件
 	virtual void OnNetLeave(SOCKET cSock) = 0;
 	virtual void OnNetJoin(SOCKET cSock) = 0;
-	virtual void OnNetMsg(ClientSocket* pClient, const DataHeader* pHeader) = 0;
+	virtual void OnNetMsg(CWorkServer* pWorkServer, ClientSocket* pClient, const DataHeader* pHeader) = 0;
 };
 
-class CSendMsg2ClientTask : public CServerTask
+class CSendMsg2ClientTask : public CBaseTask
 {
 private:
 	ClientSocket* pClient_;
 	DataHeader* pHeader_;
 public:
-	CSendMsg2ClientTask();
-	~CSendMsg2ClientTask();
+	CSendMsg2ClientTask(ClientSocket* pclient, DataHeader* pheader)
+	{
+		pClient_ = pclient;
+		pHeader_ = pheader;
+	}
 
+	virtual void doTask()
+	{
+		pClient_->SendData(pHeader_);
+		delete pHeader_;
+	}
 };
