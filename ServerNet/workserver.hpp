@@ -11,7 +11,7 @@
 #include <atomic>
 #include <map>
 #include "defines.h"
-#include "netevent.h"
+#include "clientsock.hpp"
 
 class CWorkServer
 {
@@ -23,6 +23,7 @@ public:
 		recvCount_ = 0;
 		bRun_ = true;
 		pNetEvent_ = nullptr;
+		memset(arrayRecv_, 0, sizeof(arrayRecv_));
 	}
 	~CWorkServer()
 	{
@@ -117,10 +118,10 @@ public:
 		}
 		ClientSocket* pClient = dClients_[cSock];
 		//将接收到的数据拷贝到消息缓冲区末尾
-		memcpy(pClient->getMsgBuf() + pClient->getRecvLastPos(), arrayRecv_, nLen);
+		memcpy(pClient->getRecvBuf() + pClient->getRecvLastPos(), arrayRecv_, nLen);
 		//消息缓冲区数据尾部位置后移
 		pClient->addRecvLastPos(nLen);
-		if (pClient->getRecvLastPos() > (RECV_BUFF_SIZE))
+		if (pClient->getRecvLastPos() > RECV_BUFF_SIZE)
 		{
 			printf("数据缓冲区溢出，程序崩溃!!!\n");
 			getchar();
@@ -131,19 +132,15 @@ public:
 		int iDhLen = sizeof(DataHeader);
 		while (pClient->getRecvLastPos() >= iDhLen)
 		{
-			DataHeader* header = (DataHeader*)pClient->getMsgBuf();
+			DataHeader* header = (DataHeader*)pClient->getRecvBuf();
 
 			short iLen = header->dataLength;
 			if (pClient->getRecvLastPos() >= iLen)
 			{
-				if (header->cmd != 1)
-				{
-					system("pause");
-				}
 				OnNetMsg(pClient, header);
 				//剩余未处理消息缓冲区数据长度
 				pClient->addRecvLastPos(-iLen);
-				memcpy(pClient->getMsgBuf(), pClient->getMsgBuf() + iLen, pClient->getRecvLastPos());
+				memcpy(pClient->getRecvBuf(), pClient->getRecvBuf() + iLen, pClient->getRecvLastPos());
 
 				iHandle += 1;
 				if (0 != RECV_HANDLE_SIZE and iHandle >= RECV_HANDLE_SIZE)
@@ -187,6 +184,16 @@ public:
 		int iCount = recvCount_;
 		recvCount_ = 0;
 		return iCount;
+	}
+
+	int getSendCount()
+	{
+		int sendCount = 0;
+		for (auto client : dClients_)
+		{
+			sendCount += client.second->getSendCount();
+		}
+		return sendCount;
 	}
 
 	bool IsRun()

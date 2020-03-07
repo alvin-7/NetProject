@@ -35,8 +35,8 @@
     <ClInclude Include="defines.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="netevent.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="clientsock.hpp">
+      <Filter>源文件</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -14,8 +14,10 @@ public:
 	{
 		sockfd_ = sockfd;
 		memset(recvMsgBuf_, 0, sizeof(recvMsgBuf_));
+		memset(sendMsgBuf_, 0, sizeof(sendMsgBuf_));
 		lastRecvPos_ = 0;
 		lastSendPos_ = 0;
+		sendCount_ = 0;
 	}
 
 	SOCKET getSockfd()
@@ -23,7 +25,7 @@ public:
 		return sockfd_;
 	}
 
-	char* getMsgBuf()
+	char* getRecvBuf()
 	{
 		return recvMsgBuf_;
 	}
@@ -47,23 +49,31 @@ public:
 		lastSendPos_ += pos;
 	}
 
+	int getSendCount()
+	{
+		int iCount = sendCount_;
+		sendCount_ = 0;
+		return iCount;
+	}
+
 	//发送数据
-	int SendData(DataHeader* header)
+	int SendData(const DataHeader* header)
 	{
 		int ret = SOCKET_ERROR;
 		int iLen = header->dataLength;
 		const char* pSendData = (const char*)header;
 		while (iLen > 0)
 		{
-			if (lastSendPos_ + iLen >= SEND_BUFF_SIZE)
+			if ((lastSendPos_ + iLen) >= SEND_BUFF_SIZE)
 			{
 				int iLeftLen = SEND_BUFF_SIZE - lastSendPos_;
-				memcpy(sendMsgBuf_, pSendData, iLeftLen);
+				memcpy(sendMsgBuf_ + lastSendPos_, pSendData, iLeftLen);
 				//剩余数据
 				pSendData += iLeftLen;
 				//剩余数据长度
 				iLen -= iLeftLen;
 				//发送整个缓冲区数据
+				sendCount_++;
 				ret = send(sockfd_, sendMsgBuf_, SEND_BUFF_SIZE, 0);
 				lastSendPos_ = 0;
 				if (SOCKET_ERROR == ret)
@@ -76,6 +86,7 @@ public:
 				memcpy(sendMsgBuf_ + lastSendPos_, pSendData, iLen);
 				lastSendPos_ += iLen;
 				iLen = 0;
+				break;
 			}
 		}
 		return ret;
@@ -92,6 +103,7 @@ private:
 	int lastRecvPos_;
 	//发送缓冲区的数据尾部位置
 	int lastSendPos_;
+	std::atomic_int sendCount_;
 };
 
 class INetEvent
@@ -106,5 +118,4 @@ public:
 	virtual void OnNetJoin(SOCKET cSock) = 0;
 	virtual void OnNetMsg(ClientSocket* pClient, const DataHeader* pHeader) = 0;
 private:
-
 };
