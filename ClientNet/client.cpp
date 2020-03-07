@@ -13,6 +13,21 @@ using namespace std;
 
 class CNetClient
 {
+private:
+	SOCKET sock_;
+	fd_set fdMain_;	//创建一个用来装socket的结构体
+	//消息接收暂存区 动态数组
+	char arrayRecv_[SINGLE_BUFF_SIZE] = {};
+	//消息缓冲区 动态数组
+	char msgBuf_[RECV_BUFF_SIZE] = {};
+	//记录上次接收数据位置
+	int lastPos_ = 0;
+
+	bool isRun_ = false;
+	mutex mutex_;
+
+	unsigned int recvCount_;
+
 public:
 	CNetClient()
 	{
@@ -225,20 +240,7 @@ public:
 		recvCount_ = 0;
 		return temp;
 	}
-private:
-	SOCKET sock_;
-	fd_set fdMain_;	//创建一个用来装socket的结构体
-	//消息接收暂存区 动态数组
-	char arrayRecv_[SINGLE_BUFF_SIZE] = {};
-	//消息缓冲区 动态数组
-	char msgBuf_[RECV_BUFF_SIZE] = {};
-	//记录上次接收数据位置
-	int lastPos_ = 0;
 
-	bool isRun_ = false;
-	mutex mutex_;
-
-	unsigned int recvCount_;
 };
 
 //输入线程
@@ -306,8 +308,8 @@ bool SendThread(const int tid)
 	}
 	printf("thread<%d>,connect done...\n", tid);
 	
-	/*std::chrono::milliseconds t(3000);
-	std::this_thread::sleep_for(t);*/
+	std::chrono::milliseconds t(3000);
+	std::this_thread::sleep_for(t);
 
 	Login login;
 	strcpy(login.uName, "zhuye");

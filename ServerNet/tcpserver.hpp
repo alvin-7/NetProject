@@ -6,10 +6,25 @@ tcp服务器
 
 #include "workserver.hpp"
 #include "timestamp.hpp"
-#include "task.hpp"
 
 class CTcpServer : public INetEvent
 {
+private:
+	//高精度计时器
+	CTimestamp oTime_;
+
+	SOCKET sock_;
+	fd_set fdMain_;		//创建一个用来装socket的结构体
+	fd_set fdRead_ = fdMain_;
+
+	std::vector<CWorkServer*> workServerLst_;
+
+
+	bool bRun_ = true;		//是否运行
+
+protected:
+	unsigned int acCount_ = 0;
+
 public:
 	CTcpServer()
 	{
@@ -136,7 +151,6 @@ public:
 			}
 			else
 			{
-				//printf("<%d>新客户端加入 Socket: %d ; IP: %s\n",(int)fdMain_.fd_count, cSock, (inet_ntoa)(clientAddr.sin_addr));
 				addClient2WorkServer(cSock);
 			}
 		}
@@ -188,11 +202,11 @@ public:
 			}
 			if (recvCount > 0 or sendCount > 0)
 			{
-				printf("clientNum: %d, recvCount: %d, sendCount: %d time: %lf\n", acCount_, recvCount,sendCount, t1);
+				printf("clientNum: %d, recvCount: %-10d sendCount: %-6d time: %-6lf\n", acCount_, recvCount,sendCount, t1);
 			}
 			else
 			{
-				printf("clientNum: %d, recvCount: ZERO, sendCount: ZERO,time: %lf\n", acCount_, t1);
+				printf("clientNum: %d, recvCount: ZERO sendCount: ZERO  time: %lf\n", acCount_, t1);
 			}
 			oTime_.Update();
 		}
@@ -231,21 +245,5 @@ public:
 	{
 		acCount_++;
 	}
-
-private:
-	//高精度计时器
-	CTimestamp oTime_;
-
-	SOCKET sock_;
-	fd_set fdMain_;		//创建一个用来装socket的结构体
-	fd_set fdRead_ = fdMain_;
-
-	std::vector<CWorkServer*> workServerLst_;
-
-
-	bool bRun_ = true;		//是否运行
-
-protected:
-	unsigned int acCount_ = 0;
 
 };

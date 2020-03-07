@@ -5,10 +5,23 @@
 #define SOCKET int
 #endif // _WIN32
 
+#include "task.hpp"
 
 //客户端数据类型
 class ClientSocket
 {
+private:
+	// socket fd_set  file desc set
+	SOCKET sockfd_;
+	//接收缓冲区
+	char recvMsgBuf_[RECV_BUFF_SIZE];
+	//发送缓冲区
+	char sendMsgBuf_[SEND_BUFF_SIZE];
+	//接收缓冲区的数据尾部位置
+	int lastRecvPos_;
+	//发送缓冲区的数据尾部位置
+	int lastSendPos_;
+	std::atomic_int sendCount_;
 public:
 	ClientSocket(SOCKET sockfd = INVALID_SOCKET)
 	{
@@ -91,19 +104,6 @@ public:
 		}
 		return ret;
 	}
-
-private:
-	// socket fd_set  file desc set
-	SOCKET sockfd_;
-	//接收缓冲区
-	char recvMsgBuf_[RECV_BUFF_SIZE];
-	//发送缓冲区
-	char sendMsgBuf_[SEND_BUFF_SIZE];
-	//接收缓冲区的数据尾部位置
-	int lastRecvPos_;
-	//发送缓冲区的数据尾部位置
-	int lastSendPos_;
-	std::atomic_int sendCount_;
 };
 
 class INetEvent
@@ -117,5 +117,15 @@ public:
 	virtual void OnNetLeave(SOCKET cSock) = 0;
 	virtual void OnNetJoin(SOCKET cSock) = 0;
 	virtual void OnNetMsg(ClientSocket* pClient, const DataHeader* pHeader) = 0;
+};
+
+class CSendMsg2ClientTask : public CServerTask
+{
 private:
+	ClientSocket* pClient_;
+	DataHeader* pHeader_;
+public:
+	CSendMsg2ClientTask();
+	~CSendMsg2ClientTask();
+
 };

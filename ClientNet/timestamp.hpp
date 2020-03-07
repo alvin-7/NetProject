@@ -4,6 +4,9 @@ using namespace std::chrono;
 
 class CTimestamp
 {
+private:
+	time_point<high_resolution_clock> m_Begin;
+
 public:
 	CTimestamp()
 	{
@@ -39,6 +42,4 @@ public:
 		return t;
 	}
 
-private:
-	time_point<high_resolution_clock> m_Begin;
 };

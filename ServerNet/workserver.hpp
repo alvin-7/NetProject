@@ -15,6 +15,26 @@
 
 class CWorkServer
 {
+private:
+	SOCKET sock_;
+	//总Socket队列
+	fd_set fdMain_;		//创建一个用来装socket的结构体
+	//临时Socket队列
+	fd_set fdRead_ = fdMain_;
+
+	std::mutex mutex_;
+	std::thread* pThread_;
+
+	//消息接收暂存区 动态数组
+	char arrayRecv_[SINGLE_BUFF_SIZE];
+
+	bool bRun_;
+
+	std::map<SOCKET, ClientSocket*> dClients_;
+	INetEvent* pNetEvent_;
+protected:
+	std::atomic_int recvCount_;
+
 public:
 	CWorkServer(SOCKET sock = INVALID_SOCKET)
 	{
@@ -212,25 +232,5 @@ public:
 		close(sock_);
 #endif // _WIN32
 	}
-
-private:
-	SOCKET sock_;
-	//总Socket队列
-	fd_set fdMain_;		//创建一个用来装socket的结构体
-	//临时Socket队列
-	fd_set fdRead_ = fdMain_;
-
-	std::mutex mutex_;
-	std::thread* pThread_;
-
-	//消息接收暂存区 动态数组
-	char arrayRecv_[SINGLE_BUFF_SIZE];
-
-	bool bRun_;
-
-	std::map<SOCKET, ClientSocket*> dClients_;
-	INetEvent* pNetEvent_;
-public:
-	std::atomic_int recvCount_;
 
 };

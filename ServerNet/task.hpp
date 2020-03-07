@@ -18,12 +18,19 @@ public:
 	{
 	}
 
-private:
-
 };
 
 class CServerTask
 {
+private:
+	//任务数据
+	std::list<CBaseTask*> tasks_;
+	//任务数据缓冲区
+	std::list<CBaseTask*> tasksBuf_;
+	//改变数据缓冲区使用锁
+	std::mutex lock_;
+	//线程
+	//std::thread* thread_;
 public:
 	CServerTask()
 	{
@@ -43,7 +50,7 @@ public:
 	//启动服务
 	void Start()
 	{
-		std::thread t(std::mem_fn(CServerTask::OnRun), this);
+		std::thread t(std::mem_fn(&CServerTask::OnRun), this);
 		t.detach();
 	}
 
@@ -77,15 +84,7 @@ public:
 
 		}
 	}
-private:
-	//任务数据
-	std::list<CBaseTask*> tasks_;
-	//任务数据缓冲区
-	std::list<CBaseTask*> tasksBuf_;
-	//改变数据缓冲区使用锁
-	std::mutex lock_;
-	//线程
-	//std::thread* thread_;
+
 };
 
 #endif // !_TASK_H_
