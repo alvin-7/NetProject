@@ -222,6 +222,11 @@ public:
 	void Close()
 	{
 		bRun_ = false;
+
+		for (auto ser : workServerLst_)
+		{
+			delete ser;
+		}
 #ifdef _WIN32
 		//7. 关闭套接字
 		closesocket(sock_);

@@ -23,6 +23,7 @@ private:
 	//临时Socket队列
 	fd_set fdRead_ = fdMain_;
 
+	//操作dClient_时用的锁
 	std::mutex mutex_;
 	std::thread* pThread_;
 
@@ -102,6 +103,7 @@ public:
 					SOCKET socketTemp = fdRead_.fd_array[i];
 					if (pNetEvent_)
 						pNetEvent_->OnNetLeave(socketTemp);
+					delete dClients_[socketTemp];
 					dClients_.erase(socketTemp);
 					FD_CLR(socketTemp, &fdMain_);
 					//释放
@@ -211,6 +213,7 @@ public:
 
 	int getSendCount()
 	{
+		std::lock_guard<std::mutex> lock(mutex_);
 		int sendCount = 0;
 		for (auto client : dClients_)
 		{
@@ -226,6 +229,12 @@ public:
 
 	void Close()
 	{
+		for (auto client : dClients_)
+		{
+			delete client.second;
+		}
+		dClients_.clear();
+		delete pThread_;
 #ifdef _WIN32
 		//7. 关闭套接字
 		closesocket(sock_);
