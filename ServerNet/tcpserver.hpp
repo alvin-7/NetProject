@@ -1,4 +1,4 @@
-﻿/*
+/*
 tcp服务器
 负责连接客户端
 负责分配客户端到workserver
@@ -51,7 +51,7 @@ public:
 		}
 		//1. 建立套接字socket
 		sock_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-		if (SOCKET_ERROR == sock_)
+		if (SOCKET_ERROR == int(sock_))
 		{
 			printf("Socket Error!\n");
 			return false;

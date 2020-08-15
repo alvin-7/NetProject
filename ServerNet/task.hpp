@@ -12,8 +12,7 @@ public:
 	{}
 	
 	virtual ~CBaseTask() 
-	{
-	}
+	{}
 
 	virtual void doTask() = 0;
 
@@ -22,13 +21,13 @@ public:
 class CServerTask
 {
 private:
-	//ÈÎÎñÊı¾İ
+	//ä»»åŠ¡æ•°æ®
 	std::list<CBaseTask*> tasks_;
-	//ÈÎÎñÊı¾İ»º³åÇø
+	//ä»»åŠ¡æ•°æ®ç¼“å†²åŒº
 	std::list<CBaseTask*> tasksBuf_;
-	//¸Ä±äÊı¾İ»º³åÇøÊ¹ÓÃËø
+	//æ”¹å˜æ•°æ®ç¼“å†²åŒºä½¿ç”¨é”
 	std::mutex lock_;
-	//Ïß³Ì
+	//çº¿ç¨‹
 	//std::thread* thread_;
 public:
 	CServerTask()
@@ -39,14 +38,14 @@ public:
 	{
 	}
 	
-	//Ìí¼ÓÈÎÎñ
+	//æ·»åŠ ä»»åŠ¡
 	void addTask(CBaseTask* task)
 	{
 		std::lock_guard<std::mutex> lock(lock_);
 		tasksBuf_.push_back(task);
 	}
 
-	//Æô¶¯·şÎñ
+	//å¯åŠ¨æœåŠ¡
 	void Start()
 	{
 		std::thread t(std::mem_fn(&CServerTask::OnRun), this);
@@ -54,14 +53,14 @@ public:
 	}
 
 protected:
-	//¹¤×÷º¯Êı
+	//å·¥ä½œå‡½æ•°
 	void OnRun()
 	{
 		while(true)
 		{
 			if (!tasksBuf_.empty())
 			{
-				//´Ó»º³åÇøÈ¡³öÊı¾İ¸øtasks_
+				//ä»ç¼“å†²åŒºå–å‡ºæ•°æ®ç»™tasks_
 				std::lock_guard<std::mutex> lock(lock_);
 				for (auto pTask : tasksBuf_)
 				{
@@ -75,7 +74,7 @@ protected:
 				std::this_thread::sleep_for(t);
 				continue;
 			}
-			//´¦ÀíÈÎÎñ
+			//å¤„ç†ä»»åŠ¡
 			for (auto pTask : tasks_)
 			{
 				pTask->doTask();

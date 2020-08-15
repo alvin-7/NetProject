@@ -10,7 +10,7 @@ public:
 		{
 		case CMD_LOGIN:
 		{
-			Login* login = (Login*)pHeader;
+			//Login* login = (Login*)pHeader;
 			//printf("CMD_LOGIN name: %s ; password: %s\n", login->uName, login->uPassword);
 			LoginResult* ret = new LoginResult();
 			ret->result = true;
@@ -19,7 +19,7 @@ public:
 		break;
 		case CMD_LOGINOUT:
 		{
-			Loginout* loginout = (Loginout*)pHeader;
+			//Loginout* loginout = (Loginout*)pHeader;
 			//printf("CMD_LOGIN name: %s\n", loginout->uName);
 			LoginoutResult* ret = new LoginoutResult();
 			ret->result = true;

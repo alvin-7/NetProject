@@ -23,19 +23,19 @@ public:
 	}
 
 
-	//»ñÈ¡µ±Ç°Ãë
+	//è·å–å½“å‰ç§’
 	double GetElapsedSecond()
 	{
 		return GetElapsedTimeInMicroSec() * 0.000001;
 	}
 
-	//»ñÈ¡ºÁÃë
+	//è·å–æ¯«ç§’
 	double GetElapsedTimeInMilliSec()
 	{
 		return GetElapsedTimeInMicroSec() * 0.001;
 	}
 
-	//»ñÈ¡Î¢Ãë
+	//è·å–å¾®ç§’
 	long long GetElapsedTimeInMicroSec()
 	{
 		auto t = duration_cast<microseconds>(high_resolution_clock::now() - m_Begin).count();

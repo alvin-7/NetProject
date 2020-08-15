@@ -5,7 +5,7 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <windows.h>
 #include <WinSock2.h>
-#pragma comment(lib, "ws2_32.lib")
+//#pragma comment(lib, "ws2_32.lib")
 #else
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -16,18 +16,18 @@
 #define SOCKET_ERROR            (-1)
 #endif // _WIN32
 
-//接收消息缓冲区大小
+//???????????????小
 #ifndef RECV_BUFF_SIZE
 #define SINGLE_BUFF_SIZE 10240
 #define RECV_BUFF_SIZE 10240*5
 #endif // !RECV_BUFF_SIZE
 
-//每帧处理消息最大数 0表示能处理无限条
+//?????????????? 0??????????????
 #ifndef RECV_HANDLE_SIZE
 #define RECV_HANDLE_SIZE 0
 #endif // !RECV_HANDLE_SIZE
 
-//客户端线程数
+//??????????
 #define _WORKCLIENT_NUM_ 4
 
 bool g_bRun = true;
