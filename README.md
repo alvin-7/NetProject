@@ -1,6 +1,10 @@
 # NetProject
 > 基于select/epoll的网络通信架构
 
+### 使用方式
+
+1. 在系统变量中添加MinGW环境变量 `MinGW : D\Env\MinGW64\mingw32`
+
 ### 服务端
 
 1. 使用Socket通信
