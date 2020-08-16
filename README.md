@@ -1,5 +1,5 @@
 # NetProject
-> 百万网络通信架构
+> 基于select/epoll的网络通信架构
 
 ### 服务端
 
