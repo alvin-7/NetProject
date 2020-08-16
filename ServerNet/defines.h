@@ -8,7 +8,7 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <windows.h>
 #include <WinSock2.h>
-//#pragma comment(lib, "ws2_32.lib")
+//#pragma comment(lib, "ws2_32.lib") VSstudio使用
 #else
 #include <unistd.h>
 #include <arpa/inet.h>
