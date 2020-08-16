@@ -5,11 +5,46 @@
     "tasks": [
         {
             "type": "shell",
-            "label": "g++.exe build active file", //任务的名字，就是刚才在命令面板中选择的时候所看到的，可以自己设置
+            "label": "g++.exe build client", //任务的名字，就是刚才在命令面板中选择的时候所看到的，可以自己设置
             "command": "D:\\Env\\MinGW64\\mingw32\\bin\\g++.exe",
             "args": [ //编译时候的参数
                 "-g", //添加gdb调试选项
-                "${file}",
+                "${workspaceFolder}\\ClientNet\\client.cpp",
+                "-o", //指定生成可执行文件的名称
+                "${fileDirname}\\..\\bin\\${fileBasenameNoExtension}.exe",
+                "-ggdb3", // 生成和调试有关的信息
+                "-Wall", // 开启额外警告
+                "-static-libgcc", // 静态链接
+                "-std=c++17", // 使用c++17标准
+                "-finput-charset=UTF-8", //输入编译器文本编码 默认为UTF-8
+                "-fexec-charset=GB18030", //输出exe文件的编码
+                "-D _USE_MATH_DEFINES",
+                "-lws2_32", //替换VS Studio中个的#pragma comment(lib, "ws2_32.lib")
+            ],
+            "options": {
+                "cwd": "D:\\Env\\MinGW64\\mingw32\\bin"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true //表示快捷键Ctrl+Shift+B可以运行该任务
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always", // 在“终端”中显示编译信息的策略，可以为always，silent，never
+                "panel": "shared", // 不同的文件的编译信息共享一个终端面板
+                "clear": true, // 运行前清除终端显示
+            },
+        },
+        {
+            "type": "shell",
+            "label": "g++.exe build server", //任务的名字，就是刚才在命令面板中选择的时候所看到的，可以自己设置
+            "command": "D:\\Env\\MinGW64\\mingw32\\bin\\g++.exe",
+            "args": [ //编译时候的参数
+                "-g", //添加gdb调试选项
+                "${workspaceFolder}\\ServerNet\\server.cpp",
                 "-o", //指定生成可执行文件的名称
                 "${fileDirname}\\..\\bin\\${fileBasenameNoExtension}.exe",
                 "-ggdb3", // 生成和调试有关的信息
