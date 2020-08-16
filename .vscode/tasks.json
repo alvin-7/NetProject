@@ -6,7 +6,7 @@
         {
             "type": "shell",
             "label": "g++.exe build client", //任务的名字，就是刚才在命令面板中选择的时候所看到的，可以自己设置
-            "command": "D:\\Env\\MinGW64\\mingw32\\bin\\g++.exe",
+            "command": "${env:MinGW}\\bin\\g++.exe",
             "args": [ //编译时候的参数
                 "-g", //添加gdb调试选项
                 "${workspaceFolder}\\ClientNet\\client.cpp",
@@ -22,7 +22,7 @@
                 "-lws2_32", //替换VS Studio中个的#pragma comment(lib, "ws2_32.lib")
             ],
             "options": {
-                "cwd": "D:\\Env\\MinGW64\\mingw32\\bin"
+                "cwd": "${env:MinGW}\\bin"
             },
             "problemMatcher": [
                 "$gcc"
@@ -41,7 +41,7 @@
         {
             "type": "shell",
             "label": "g++.exe build server", //任务的名字，就是刚才在命令面板中选择的时候所看到的，可以自己设置
-            "command": "D:\\Env\\MinGW64\\mingw32\\bin\\g++.exe",
+            "command": "${env:MinGW}\\bin\\g++.exe",
             "args": [ //编译时候的参数
                 "-g", //添加gdb调试选项
                 "${workspaceFolder}\\ServerNet\\server.cpp",
@@ -57,7 +57,7 @@
                 "-lws2_32", //替换VS Studio中个的#pragma comment(lib, "ws2_32.lib")
             ],
             "options": {
-                "cwd": "D:\\Env\\MinGW64\\mingw32\\bin"
+                "cwd": "${env:MinGW}\\bin"
             },
             "problemMatcher": [
                 "$gcc"

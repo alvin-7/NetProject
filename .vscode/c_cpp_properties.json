@@ -3,7 +3,7 @@
         {
             "name": "MinGW64",
             "intelliSenseMode": "gcc-x64",
-            "compilerPath": "D:\\Env\\MinGW64\\mingw32\\bin\\g++.exe",
+            "compilerPath": "${env:MinGW}\\bin\\g++.exe",
             "includePath": [
                 "${workspaceFolder}/**"
             ],

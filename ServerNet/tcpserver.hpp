@@ -119,11 +119,15 @@ public:
 		//第一个参数不管,是兼容目的,最后的是超时标准,select是阻塞操作
 		//当然要设置超时事件.
 		//接着的三个类型为fd_set的参数分别是用于检查套节字的可读性, 可写性, 和列外数据性质.
+		#ifdef _WIN32
 		int ret = select(sock_ + 1, &fdRead_, nullptr, nullptr, &st);
+		#else
+		int ret = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, listen_fd, &ev);
+		#endif
 		//负值：select错误
 		if (ret < 0)
 		{
-			printf("select -> Accept 失败，任务结束\n");
+			printf("select/epoll failure, close prog\n");
 			Close();
 			return false;
 		}

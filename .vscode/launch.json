@@ -16,7 +16,7 @@
             "environment": [],
             "externalConsole": true, //true显示外置的控制台窗口，false显示内置终端
             "MIMode": "gdb",
-            "miDebuggerPath": "D:\\Env\\MinGW64\\mingw32\\bin\\gdb.exe",
+            "miDebuggerPath": "${env:MinGW}\\bin\\gdb.exe",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
@@ -37,7 +37,7 @@
             "environment": [],
             "externalConsole": true, //true显示外置的控制台窗口，false显示内置终端
             "MIMode": "gdb",
-            "miDebuggerPath": "D:\\Env\\MinGW64\\mingw32\\bin\\gdb.exe",
+            "miDebuggerPath": "${env:MinGW}\\bin\\gdb.exe",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
